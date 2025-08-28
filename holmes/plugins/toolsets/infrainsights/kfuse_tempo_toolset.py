@@ -325,7 +325,9 @@ class FetchTraces(Tool):
             default=""
         )
     }
+
     toolset: Optional[Any] = Field(default=None, exclude=True)
+
     
     def __init__(self, toolset=None):
         super().__init__(
@@ -525,7 +527,9 @@ class FetchKubeDeploymentTraces(Tool):
             required=True,
         )
     }
+
     toolset: Optional[Any] = Field(default=None, exclude=True)
+
     
     def __init__(self, toolset=None):
         super().__init__(
@@ -743,7 +747,9 @@ class AnalyzeTraceRCA(Tool):
             required=True,
         )
     }
+
     toolset: Optional[Any] = Field(default=None, exclude=True)
+
     
     def __init__(self, toolset=None):
         super().__init__(
