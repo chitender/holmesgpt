@@ -11,7 +11,7 @@ from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, OrderedDict, Tuple, Union
 
 from jinja2 import Template
-from pydantic import BaseModel, ConfigDict, Field, FilePath, model_validator
+from pydantic import BaseModel, ConfigDict, Field, FilePath, model_validator, field_serializer
 from rich.console import Console
 
 from holmes.core.openai_formatting import format_tool_to_open_ai_standard
@@ -313,7 +313,16 @@ class StaticPrerequisite(BaseModel):
 
 
 class CallablePrerequisite(BaseModel):
+    """Prerequisite implemented via a Python callable."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     callable: Callable[[dict[str, Any]], Tuple[bool, str]]
+
+    @field_serializer("callable", when_used="json")
+    def serialize_callable(cls, v: Callable[[dict[str, Any]], Tuple[bool, str]]):  # type: ignore[override]
+        """Serialize callable prerequisites by name when dumping to JSON."""
+        return getattr(v, "__name__", repr(v))
 
 
 class ToolsetCommandPrerequisite(BaseModel):
@@ -366,24 +375,32 @@ class Toolset(BaseModel):
         Overrides the current attributes with values from the Toolset loaded from custom config
         if they are not None.
         """
-        for field, value in override.model_dump(
+        override_data = override.model_dump(
             exclude_unset=True,
-            exclude=("name"),  # type: ignore
-        ).items():
+            exclude=("name", "tools"),  # type: ignore
+        )
+        for field, value in override_data.items():
             if field in self.__class__.model_fields and value not in (None, [], {}, ""):
                 setattr(self, field, value)
+
+        # tools need to be copied as objects, not serialized dicts
+        if getattr(override, "tools", None) not in (None, [], {}):
+            self.tools = list(override.tools)
 
     @model_validator(mode="before")
     def preprocess_tools(cls, values):
         additional_instructions = values.get("additional_instructions", "")
         tools_data = values.get("tools", [])
-        tools = []
+        tools: list[Tool] = []
         for tool in tools_data:
             if isinstance(tool, dict):
                 tool["additional_instructions"] = additional_instructions
+                tool = YAMLTool(**tool)
             if isinstance(tool, Tool):
                 tool.additional_instructions = additional_instructions
-            tools.append(tool)
+                tools.append(tool)
+            else:
+                tools.append(tool)
         values["tools"] = tools
 
         return values
