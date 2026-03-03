@@ -2,6 +2,12 @@
 """
 Test script to connect to an MCP server and list available tools.
 
+Prerequisites:
+    Install dependencies first:
+        poetry install
+    OR
+        pip install mcp httpx anyio
+
 Usage:
     python test_mcp_server.py --url http://example.com:8000/mcp --mode streamable-http --header "Authorization: Bearer token"
     python test_mcp_server.py --url http://example.com:8000/sse --mode sse --header "Authorization: Bearer token"
@@ -14,10 +20,24 @@ import sys
 from datetime import timedelta
 from typing import Optional, Dict
 
-from mcp.client.session import ClientSession
-from mcp.client.sse import sse_client
-from mcp.client.streamable_http import streamablehttp_client
-from holmes.common.env_vars import SSE_READ_TIMEOUT
+try:
+    from mcp.client.session import ClientSession
+    from mcp.client.sse import sse_client
+    from mcp.client.streamable_http import streamablehttp_client
+except ImportError as e:
+    print("ERROR: MCP library not found. Please install dependencies:")
+    print("  poetry install")
+    print("  OR")
+    print("  pip install mcp httpx anyio")
+    print(f"\nOriginal error: {e}")
+    sys.exit(1)
+
+try:
+    from holmes.common.env_vars import SSE_READ_TIMEOUT
+except ImportError:
+    # Fallback if running outside the project structure
+    import os
+    SSE_READ_TIMEOUT = float(os.environ.get("SSE_READ_TIMEOUT", "120"))
 
 # Convert SSE_READ_TIMEOUT to timedelta if it's a float
 if isinstance(SSE_READ_TIMEOUT, (int, float)):
