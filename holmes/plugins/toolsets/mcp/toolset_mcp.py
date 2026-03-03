@@ -480,8 +480,13 @@ class RemoteMCPToolset(Toolset):
             if not config:
                 return (False, f"Config is required for {self.name}")
 
-            mode_value = config.get("mode", MCPMode.SSE.value)
-            logger.debug(f"🔍 MCP server '{self.name}' - Config mode value: {mode_value} (from config: {config.get('mode', 'NOT SET')})")
+            # Extract nested config if present (for YAML structure: mcp_servers.kfuse.config)
+            # If config has a nested "config" key, use that; otherwise use the top-level config
+            mcp_config_dict = config.get("config", config) if isinstance(config, dict) else config
+            
+            mode_value = mcp_config_dict.get("mode", MCPMode.SSE.value)
+            logger.debug(f"🔍 MCP server '{self.name}' - Config mode value: {mode_value} (from config: {mcp_config_dict.get('mode', 'NOT SET')})")
+            logger.debug(f"🔍 MCP server '{self.name}' - Full config dict keys: {list(mcp_config_dict.keys()) if isinstance(mcp_config_dict, dict) else 'N/A'}")
             allowed_modes = [e.value for e in MCPMode]
             if mode_value not in allowed_modes:
                 return (
@@ -490,9 +495,9 @@ class RemoteMCPToolset(Toolset):
                 )
 
             if mode_value == MCPMode.STDIO.value:
-                self._mcp_config = StdioMCPConfig(**config)
+                self._mcp_config = StdioMCPConfig(**mcp_config_dict)
             else:
-                self._mcp_config = MCPConfig(**config)
+                self._mcp_config = MCPConfig(**mcp_config_dict)
                 clean_url_str = str(self._mcp_config.url).rstrip("/")
                 
                 logger.debug(f"🔍 MCP server '{self.name}' - Config: mode={self._mcp_config.mode}, original_url={self._mcp_config.url}")
