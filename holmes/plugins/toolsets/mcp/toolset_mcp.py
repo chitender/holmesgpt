@@ -204,18 +204,27 @@ async def get_initialized_mcp_session(
         url = str(toolset._mcp_config.url)
         httpx_factory = create_mcp_http_client_factory(toolset._mcp_config.verify_ssl)
         rendered_headers = toolset._render_headers(request_context)
-        async with sse_client(
-            url,
-            rendered_headers,
-            sse_read_timeout=SSE_READ_TIMEOUT,
-            httpx_client_factory=httpx_factory,
-        ) as (
-            read_stream,
-            write_stream,
-        ):
-            async with ClientSession(read_stream, write_stream) as session:
-                _ = await session.initialize()
-                yield session
+        logger.info(f"🔍 MCP server '{toolset.name}' - SSE: Connecting to {url}")
+        logger.debug(f"🔍 MCP server '{toolset.name}' - SSE: Headers: {list(rendered_headers.keys()) if rendered_headers else 'None'}")
+        try:
+            async with sse_client(
+                url,
+                rendered_headers,
+                sse_read_timeout=SSE_READ_TIMEOUT,
+                httpx_client_factory=httpx_factory,
+            ) as (
+                read_stream,
+                write_stream,
+            ):
+                logger.info(f"🔍 MCP server '{toolset.name}' - SSE: Connection established")
+                async with ClientSession(read_stream, write_stream) as session:
+                    logger.info(f"🔍 MCP server '{toolset.name}' - SSE: Initializing session...")
+                    init_result = await session.initialize()
+                    logger.info(f"🔍 MCP server '{toolset.name}' - SSE: Session initialized: {init_result}")
+                    yield session
+        except Exception as e:
+            logger.error(f"❌ MCP server '{toolset.name}' - SSE connection failed: {type(e).__name__}: {e}", exc_info=True)
+            raise
     else:
         url = str(toolset._mcp_config.url)
         httpx_factory = create_mcp_http_client_factory(toolset._mcp_config.verify_ssl)
@@ -539,20 +548,37 @@ class RemoteMCPToolset(Toolset):
 
     async def _get_server_tools(self):
         try:
-            logger.debug(f"🔍 MCP server '{self.name}' - Attempting to connect and fetch tools...")
+            # Log connection details
+            if self._mcp_config:
+                url_str = str(self._mcp_config.url) if hasattr(self._mcp_config, 'url') else 'N/A'
+                mode_str = str(self._mcp_config.mode) if hasattr(self._mcp_config, 'mode') else 'N/A'
+                logger.info(f"🔍 MCP server '{self.name}' - Connecting to: {url_str} (mode: {mode_str})")
+                if hasattr(self._mcp_config, 'headers') and self._mcp_config.headers:
+                    logger.debug(f"🔍 MCP server '{self.name}' - Headers: {list(self._mcp_config.headers.keys())}")
+            
+            logger.info(f"🔍 MCP server '{self.name}' - Attempting to connect and fetch tools...")
             async with get_initialized_mcp_session(self, None) as session:
-                logger.debug(f"🔍 MCP server '{self.name}' - Session initialized, calling list_tools()...")
+                logger.info(f"🔍 MCP server '{self.name}' - Session initialized, calling list_tools()...")
                 tools_result = await session.list_tools()
-                logger.info(f"🔍 MCP server '{self.name}' - list_tools() returned {len(tools_result.tools) if tools_result and hasattr(tools_result, 'tools') else 0} tool(s)")
+                
+                tool_count = len(tools_result.tools) if tools_result and hasattr(tools_result, 'tools') else 0
+                logger.info(f"🔍 MCP server '{self.name}' - list_tools() returned {tool_count} tool(s)")
+                
                 if tools_result and hasattr(tools_result, 'tools'):
                     if tools_result.tools:
-                        logger.debug(f"🔍 MCP server '{self.name}' - Tool names: {[tool.name for tool in tools_result.tools[:10]]}")
+                        tool_names = [tool.name for tool in tools_result.tools[:10]]
+                        logger.info(f"✅ MCP server '{self.name}' - Discovered tools: {tool_names}{'...' if len(tools_result.tools) > 10 else ''}")
                     else:
                         logger.warning(f"⚠️ MCP server '{self.name}' - list_tools() returned empty tools list. The server may not be exposing any tools via MCP protocol.")
+                        logger.warning(f"⚠️ MCP server '{self.name}' - Response type: {type(tools_result)}, has tools attr: {hasattr(tools_result, 'tools')}")
+                else:
+                    logger.warning(f"⚠️ MCP server '{self.name}' - list_tools() returned unexpected result: {type(tools_result)}")
+                
                 return tools_result
         except Exception as e:
             error_detail = _extract_root_error_message(e)
             logger.error(f"❌ MCP server '{self.name}' - Failed to fetch tools: {error_detail}", exc_info=True)
+            logger.error(f"❌ MCP server '{self.name}' - Exception type: {type(e).__name__}")
             # Return empty tools result instead of raising
             from mcp.types import ListToolsResult
             return ListToolsResult(tools=[])
