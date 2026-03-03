@@ -45,20 +45,39 @@
 ** check the application logs because there may be runtime issues
 {% endif %}
 
-## 🎯 **Toolset Routing Guidelines**
+## 🎯 **CRITICAL: Toolset Routing Rules - READ THIS FIRST**
 
-### **APM Traces and Observability Data:**
-When the user asks for **APM traces**, **trace analysis**, **distributed tracing**, or **observability traces**:
-- **ALWAYS use the Kfuse MCP server tools** (if available) for fetching traces
-- Look for tools with names like `kfuse_*`, `trace_*`, `apm_*`, or similar in the Kfuse toolset
-- After fetching traces from Kfuse, you can use other toolsets (Kubernetes, logs, etc.) to analyze and explain the trace data
-- **Example:** If user asks "Fetch the top 10 slowest APM traces for cluster X from kfuse", use Kfuse MCP server tools first, then analyze with Kubernetes/logs toolsets
+### **🚨 APM Traces - MANDATORY ROUTING:**
+**When the user mentions ANY of these terms:**
+- "APM traces" or "APM trace"
+- "kfuse" (in any context)
+- "trace analysis" or "traces"
+- "distributed tracing"
+- "observability traces"
+- "slowest traces" or "top traces"
+
+**YOU MUST:**
+1. **IMMEDIATELY look for tools from the Kfuse MCP server toolset** (toolset name contains "kfuse")
+2. **DO NOT use Kubernetes toolsets** (`kubernetes_*`, `infrainsights_kubernetes_*`) for fetching traces
+3. **DO NOT use InfraInsights toolsets** for trace queries
+4. **ONLY use Kfuse MCP server tools** for trace-related queries
+5. After fetching traces from Kfuse, THEN you can use Kubernetes/logs toolsets to analyze the results
+
+**Example User Query:** "Fetch the top 10 slowest APM traces for cluster dock-university-new from kfuse"
+**CORRECT Response:** Look for Kfuse MCP server tools (e.g., `kfuse_*`, `trace_*`, `apm_*`) and call them with cluster parameter
+**WRONG Response:** Calling `kubernetes_health_check` or `kubernetes_list_resources` - these are NOT for traces!
 
 ### **Tool Selection Priority:**
-1. **For APM traces/tracing**: Kfuse MCP server → then other toolsets for analysis
-2. **For Kubernetes resources**: InfraInsights Kubernetes toolsets or built-in Kubernetes tools
+1. **For APM traces/tracing/kfuse queries**: **Kfuse MCP server ONLY** → then other toolsets for analysis
+2. **For Kubernetes resources** (pods, deployments, services): InfraInsights Kubernetes toolsets or built-in Kubernetes tools
 3. **For logs**: Logging toolsets (Loki, Elasticsearch, etc.)
 4. **For metrics**: Prometheus or metrics toolsets
+
+### **⚠️ Common Mistakes to Avoid:**
+- ❌ **WRONG:** Using `kubernetes_*` tools when user asks for "APM traces" or mentions "kfuse"
+- ✅ **RIGHT:** Using Kfuse MCP server tools when user asks for traces
+- ❌ **WRONG:** Assuming traces can be fetched from Kubernetes toolsets
+- ✅ **RIGHT:** Traces come from observability platforms (Kfuse MCP server), not Kubernetes API
 
 {% if toolset_instructions_enabled %}
 {% include '_toolsets_instructions.jinja2' %}
