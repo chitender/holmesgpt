@@ -522,7 +522,16 @@ class RemoteMCPToolset(Toolset):
                         # Don't auto-append - let the server URL be as configured
                         logger.debug(f"🔍 MCP server '{self.name}' - Streamable HTTP mode: Using URL as-is: {self._mcp_config.url}")
 
-            tools_result = asyncio.run(self._get_server_tools())
+            logger.info(f"🔍 MCP server '{self.name}' - Starting tool discovery...")
+            try:
+                tools_result = asyncio.run(self._get_server_tools())
+                logger.info(f"🔍 MCP server '{self.name}' - Tool discovery completed")
+            except Exception as e:
+                error_detail = _extract_root_error_message(e)
+                logger.error(f"❌ MCP server '{self.name}' - Tool discovery failed: {error_detail}", exc_info=True)
+                # Return empty tools result
+                from mcp.types import ListToolsResult
+                tools_result = ListToolsResult(tools=[])
 
             self.tools = [
                 RemoteMCPTool.create(tool, self) for tool in tools_result.tools
@@ -530,7 +539,9 @@ class RemoteMCPToolset(Toolset):
 
             if not self.tools:
                 logging.warning(f"⚠️ MCP server '{self.name}' loaded 0 tools.")
-                logging.warning(f"⚠️ MCP server '{self.name}' - Check if the server is running and accessible at {self._mcp_config.url if self._mcp_config else 'N/A'}")
+                if self._mcp_config:
+                    url_str = str(self._mcp_config.url) if hasattr(self._mcp_config, 'url') else 'N/A'
+                    logging.warning(f"⚠️ MCP server '{self.name}' - Check if the server is running and accessible at {url_str}")
                 logging.warning(f"⚠️ MCP server '{self.name}' - Verify the server exposes tools via MCP protocol")
                 # Still return True - allow toolset to be enabled even with 0 tools
                 # The toolset might be starting up or tools might be added later
