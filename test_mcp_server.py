@@ -11,12 +11,19 @@ import asyncio
 import argparse
 import logging
 import sys
+from datetime import timedelta
 from typing import Optional, Dict
 
 from mcp.client.session import ClientSession
 from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamablehttp_client
 from holmes.common.env_vars import SSE_READ_TIMEOUT
+
+# Convert SSE_READ_TIMEOUT to timedelta if it's a float
+if isinstance(SSE_READ_TIMEOUT, (int, float)):
+    SSE_READ_TIMEOUT_TD = timedelta(seconds=SSE_READ_TIMEOUT)
+else:
+    SSE_READ_TIMEOUT_TD = SSE_READ_TIMEOUT
 
 # Setup logging
 logging.basicConfig(
@@ -51,7 +58,7 @@ async def test_sse_connection(url: str, headers: Optional[Dict[str, str]] = None
         async with sse_client(
             url,
             headers,
-            sse_read_timeout=SSE_READ_TIMEOUT,
+            sse_read_timeout=SSE_READ_TIMEOUT_TD,
         ) as (read_stream, write_stream):
             logger.info("✅ SSE connection established")
             async with ClientSession(read_stream, write_stream) as session:
@@ -88,7 +95,7 @@ async def test_streamable_http_connection(url: str, headers: Optional[Dict[str, 
         async with streamablehttp_client(
             url,
             headers=headers,
-            sse_read_timeout=SSE_READ_TIMEOUT,
+            sse_read_timeout=SSE_READ_TIMEOUT_TD,
         ) as (read_stream, write_stream, _):
             logger.info("✅ Streamable HTTP connection established")
             async with ClientSession(read_stream, write_stream) as session:
