@@ -196,9 +196,67 @@ class ToolsetManager:
                 enabled_toolsets.append(toolset)
             else:
                 toolset.status = ToolsetStatusEnum.DISABLED
+        
+        # Log enabled toolsets summary at startup
+        if not silent and enabled_toolsets:
+            self._log_enabled_toolsets_summary(enabled_toolsets)
+        
         self.check_toolset_prerequisites(enabled_toolsets, silent=silent)
 
         return final_toolsets
+
+    def _log_enabled_toolsets_summary(self, enabled_toolsets: List[Toolset]) -> None:
+        """Log a summary of all enabled toolsets grouped by type."""
+        from collections import defaultdict
+        
+        toolsets_by_type = defaultdict(list)
+        for toolset in enabled_toolsets:
+            toolset_type = toolset.type.value if toolset.type else "unknown"
+            toolsets_by_type[toolset_type].append(toolset)
+        
+        logger.info("=" * 80)
+        logger.info("📦 ENABLED TOOLSETS SUMMARY")
+        logger.info("=" * 80)
+        
+        # Log built-in toolsets
+        if toolsets_by_type.get("built-in"):
+            builtin = toolsets_by_type["built-in"]
+            logger.info(f"🔧 Built-in toolsets ({len(builtin)}): {', '.join([ts.name for ts in builtin])}")
+        
+        # Log MCP servers
+        if toolsets_by_type.get("mcp"):
+            mcp = toolsets_by_type["mcp"]
+            logger.info(f"🔌 MCP servers ({len(mcp)}): {', '.join([ts.name for ts in mcp])}")
+            for mcp_ts in mcp:
+                tool_count = len(mcp_ts.tools) if mcp_ts.tools else 0
+                status_icon = "✅" if mcp_ts.status == ToolsetStatusEnum.ENABLED else "⚠️"
+                logger.info(f"   {status_icon} {mcp_ts.name}: {tool_count} tool(s), status: {mcp_ts.status.value}")
+        
+        # Log InfraInsights toolsets
+        infrainsights_toolsets = [ts for ts in enabled_toolsets if "infrainsights" in ts.name.lower()]
+        if infrainsights_toolsets:
+            logger.info(f"🔍 InfraInsights toolsets ({len(infrainsights_toolsets)}): {', '.join([ts.name for ts in infrainsights_toolsets])}")
+        
+        # Log custom toolsets (excluding MCP and InfraInsights)
+        custom = [ts for ts in enabled_toolsets 
+                 if ts.type and ts.type.value == "custom" 
+                 and "infrainsights" not in ts.name.lower()]
+        if custom:
+            logger.info(f"🛠️  Custom toolsets ({len(custom)}): {', '.join([ts.name for ts in custom])}")
+        
+        # Log HTTP toolsets
+        if toolsets_by_type.get("http"):
+            http = toolsets_by_type["http"]
+            logger.info(f"🌐 HTTP toolsets ({len(http)}): {', '.join([ts.name for ts in http])}")
+        
+        # Log Database toolsets
+        if toolsets_by_type.get("database"):
+            db = toolsets_by_type["database"]
+            logger.info(f"💾 Database toolsets ({len(db)}): {', '.join([ts.name for ts in db])}")
+        
+        total_tools = sum(len(ts.tools) if ts.tools else 0 for ts in enabled_toolsets)
+        logger.info(f"📊 Total: {len(enabled_toolsets)} toolset(s) with {total_tools} tool(s)")
+        logger.info("=" * 80)
 
     @classmethod
     def check_toolset_prerequisites(cls, toolsets: list[Toolset], silent: bool = False):
