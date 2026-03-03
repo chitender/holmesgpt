@@ -317,13 +317,92 @@ class RemoteMCPTool(Tool):
         schema_params = input_schema.get("properties", {})
         parameters = {}
         for key, val in schema_params.items():
+            param_type = val.get("type", "string")
+
+            # Handle anyOf/oneOf schemas (e.g., {"anyOf": [{"type": "array", ...}, {"type": "null"}]})
+            # Extract the primary type from the first non-null variant
+            if param_type == "string" and "type" not in val:
+                for composition_key in ("anyOf", "oneOf"):
+                    if composition_key in val:
+                        variants = val[composition_key]
+                        non_null = [v for v in variants if isinstance(v, dict) and v.get("type") != "null"]
+                        if non_null:
+                            param_type = non_null[0].get("type", "string")
+                            # For nullable types, use the list format
+                            if any(v.get("type") == "null" for v in variants if isinstance(v, dict)):
+                                param_type = [param_type, "null"]
+                            # If the primary variant has items, use it
+                            if isinstance(non_null[0], dict) and "items" in non_null[0]:
+                                val = {**val, "type": param_type if isinstance(param_type, str) else non_null[0]["type"], "items": non_null[0]["items"]}
+                        break
+
+            # Parse nested items for array types
+            items_param = None
+            if isinstance(param_type, list):
+                primary_type = [t for t in param_type if t != "null"]
+                if primary_type and primary_type[0] == "array" and "items" in val:
+                    items_param = cls._parse_schema_to_tool_param(val["items"])
+            elif param_type == "array" and "items" in val:
+                items_param = cls._parse_schema_to_tool_param(val["items"])
+
+            # Parse nested properties for object types
+            nested_properties = None
+            effective_type = param_type if isinstance(param_type, str) else ([t for t in param_type if t != "null"] or ["string"])[0]
+            if effective_type == "object" and "properties" in val:
+                nested_properties = {}
+                nested_required = val.get("required", [])
+                for prop_name, prop_val in val["properties"].items():
+                    nested_properties[prop_name] = cls._parse_schema_to_tool_param(prop_val, prop_name in nested_required)
+
             parameters[key] = ToolParameter(
                 description=val.get("description"),
-                type=val.get("type", "string"),
+                type=param_type,
                 required=key in required_list,
+                items=items_param,
+                properties=nested_properties,
             )
 
         return parameters
+
+    @classmethod
+    def _parse_schema_to_tool_param(cls, schema: dict, required: bool = True) -> ToolParameter:
+        """Parse a JSON Schema fragment into a ToolParameter for nested schemas."""
+        if not isinstance(schema, dict):
+            return ToolParameter(type="string", required=required)
+
+        param_type = schema.get("type", "string")
+
+        # Handle anyOf/oneOf at nested level
+        if "type" not in schema:
+            for composition_key in ("anyOf", "oneOf"):
+                if composition_key in schema:
+                    variants = schema[composition_key]
+                    non_null = [v for v in variants if isinstance(v, dict) and v.get("type") != "null"]
+                    if non_null:
+                        param_type = non_null[0].get("type", "string")
+                        if any(v.get("type") == "null" for v in variants if isinstance(v, dict)):
+                            param_type = [param_type, "null"]
+                    break
+
+        items_param = None
+        effective = param_type if isinstance(param_type, str) else ([t for t in param_type if t != "null"] or ["string"])[0]
+        if effective == "array" and "items" in schema:
+            items_param = cls._parse_schema_to_tool_param(schema["items"])
+
+        nested_properties = None
+        if effective == "object" and "properties" in schema:
+            nested_properties = {}
+            nested_required = schema.get("required", [])
+            for prop_name, prop_val in schema["properties"].items():
+                nested_properties[prop_name] = cls._parse_schema_to_tool_param(prop_val, prop_name in nested_required)
+
+        return ToolParameter(
+            description=schema.get("description"),
+            type=param_type,
+            required=required,
+            items=items_param,
+            properties=nested_properties,
+        )
 
     def get_parameterized_one_liner(self, params: Dict) -> str:
         # AWS MCP cli_command

@@ -1,3 +1,4 @@
+import logging
 import re
 from typing import Any, Optional
 
@@ -6,6 +7,8 @@ from holmes.common.env_vars import (
     TOOL_SCHEMA_NO_PARAM_OBJECT_IF_NO_PARAMS,
 )
 from holmes.utils.llms import model_matches_list
+
+logger = logging.getLogger(__name__)
 
 # parses both simple types: "int", "array", "string"
 # but also arrays of those simpler types: "array[int]", "array[string]", etc.
@@ -44,6 +47,10 @@ def type_to_open_ai_schema(param_attributes: Any, strict_mode: bool) -> dict[str
             }
             if strict_mode:
                 type_obj["required"] = list(param_attributes.properties.keys())
+        elif strict_mode:
+            # Bare objects in strict mode need properties and required to be valid
+            type_obj["properties"] = {}
+            type_obj["required"] = []
 
     elif param_type == "array":
         # Handle arrays with explicit item schemas
@@ -51,10 +58,9 @@ def type_to_open_ai_schema(param_attributes: Any, strict_mode: bool) -> dict[str
             items_schema = type_to_open_ai_schema(param_attributes.items, strict_mode)
             type_obj = {"type": "array", "items": items_schema}
         else:
-            # Fallback for arrays without explicit item schema
-            type_obj = {"type": "array", "items": {"type": "object"}}
-            if strict_mode:
-                type_obj["items"]["additionalProperties"] = False
+            # Fallback for arrays without explicit item schema — use string items
+            # (not object, which would require properties/required in strict mode)
+            type_obj = {"type": "array", "items": {"type": "string"}}
     else:
         match = re.match(pattern, param_type)
 
@@ -108,6 +114,25 @@ def format_tool_to_open_ai_standard(
                 enum_values.append(None)
             tool_properties[param_name]["enum"] = enum_values
 
+    required_list = [
+        param_name
+        for param_name, param_attributes in tool_parameters.items()
+        if param_attributes.required or strict_mode
+    ]
+
+    # Defensive validation: ensure required only contains keys that exist in properties.
+    # MCP servers may have schemas where required lists keys not in properties.
+    valid_required = [key for key in required_list if key in tool_properties]
+    if len(valid_required) != len(required_list):
+        dropped = set(required_list) - set(valid_required)
+        logger.warning(
+            f"Tool '{tool_name}': dropped required keys not in properties: {dropped}"
+        )
+
+    # In strict mode, required must include ALL property keys
+    if strict_mode:
+        valid_required = list(tool_properties.keys())
+
     result: dict[str, Any] = {
         "type": "function",
         "function": {
@@ -115,11 +140,7 @@ def format_tool_to_open_ai_standard(
             "description": tool_description,
             "parameters": {
                 "properties": tool_properties,
-                "required": [
-                    param_name
-                    for param_name, param_attributes in tool_parameters.items()
-                    if param_attributes.required or strict_mode
-                ],
+                "required": valid_required,
                 "type": "object",
             },
         },

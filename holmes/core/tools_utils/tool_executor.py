@@ -97,5 +97,10 @@ class ToolExecutor:
             # Filter out restricted tools if not authorized
             if not include_restricted and tool._is_restricted():
                 continue
-            tools.append(tool.get_openai_format(target_model=target_model))
+            try:
+                tools.append(tool.get_openai_format(target_model=target_model))
+            except Exception as e:
+                logging.warning(
+                    f"Skipping tool '{tool.name}' due to schema conversion error: {e}"
+                )
         return tools
