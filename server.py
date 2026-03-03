@@ -107,9 +107,34 @@ def init_config():
         tuple: (config, dal) - The initialized Config object and its DAL instance
     """
     default_config_path = Path(DEFAULT_CONFIG_LOCATION)
+    # Also check Helm-mounted config locations
+    helm_config_path = Path("/etc/holmes/config/config.yaml")
+    helm_custom_toolset_path = Path("/etc/holmes/config/custom_toolset.yaml")
+    
     if default_config_path.exists():
         logging.info(f"Loading config from file: {default_config_path}")
         config = Config.load_from_file(default_config_path)
+    elif helm_config_path.exists():
+        logging.info(f"Loading config from Helm-mounted file: {helm_config_path}")
+        config = Config.load_from_file(helm_config_path)
+    elif helm_custom_toolset_path.exists():
+        # If only custom_toolset.yaml exists, load it and merge with env vars
+        logging.info(f"Loading toolsets from Helm-mounted file: {helm_custom_toolset_path}")
+        # Load the custom toolset file to extract toolsets and mcp_servers
+        import yaml
+        with open(helm_custom_toolset_path) as f:
+            toolset_data = yaml.safe_load(f)
+        # Create config from env vars and merge in toolsets/mcp_servers
+        config = Config.load_from_env()
+        if toolset_data:
+            if "toolsets" in toolset_data:
+                if config.toolsets is None:
+                    config.toolsets = {}
+                config.toolsets.update(toolset_data["toolsets"])
+            if "mcp_servers" in toolset_data:
+                if config.mcp_servers is None:
+                    config.mcp_servers = {}
+                config.mcp_servers.update(toolset_data["mcp_servers"])
     else:
         logging.info("No config file found, loading from environment variables")
         config = Config.load_from_env()
