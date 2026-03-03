@@ -17,7 +17,7 @@ import json
 
 from holmes.core.tools import (
     Toolset, Tool, ToolsetTag, CallablePrerequisite, ToolParameter, 
-    ToolResultStatus, StructuredToolResult
+    StructuredToolResultStatus, StructuredToolResult
 )
 from holmes.plugins.toolsets.infrainsights.infrainsights_client_v2 import (
     InfraInsightsClientV2, InfraInsightsConfig, ServiceInstance
@@ -183,7 +183,7 @@ class KubernetesHealthCheckTool(Tool):
             instance_name = params.get("instance_name")
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Instance name is required",
                     params=params
                 )
@@ -192,7 +192,7 @@ class KubernetesHealthCheckTool(Tool):
             instance = self.toolset.get_instance(instance_name)
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kubernetes instance '{instance_name}' not found",
                     params=params
                 )
@@ -201,7 +201,7 @@ class KubernetesHealthCheckTool(Tool):
             health_info = self._check_cluster_health(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=health_info,
                 params=params
             )
@@ -209,7 +209,7 @@ class KubernetesHealthCheckTool(Tool):
         except Exception as e:
             logger.error(f"Failed to check Kubernetes health: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to check Kubernetes health: {str(e)}",
                 params=params
             )
@@ -413,14 +413,14 @@ class KubernetesListResourcesTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Instance name is required",
                     params=params
                 )
             
             if not kind:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Resource kind is required",
                     params=params
                 )
@@ -429,7 +429,7 @@ class KubernetesListResourcesTool(Tool):
             instance = self.toolset.get_instance(instance_name)
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kubernetes instance '{instance_name}' not found",
                     params=params
                 )
@@ -438,7 +438,7 @@ class KubernetesListResourcesTool(Tool):
             resources = self._list_resources(instance, kind, namespace, output_format)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data={
                     'instance_name': instance_name,
                     'kind': kind,
@@ -452,7 +452,7 @@ class KubernetesListResourcesTool(Tool):
         except Exception as e:
             logger.error(f"Failed to list Kubernetes resources: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to list Kubernetes resources: {str(e)}",
                 params=params
             )
@@ -650,14 +650,14 @@ class KubernetesDescribeResourceTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Instance name is required",
                     params=params
                 )
             
             if not kind or not name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Resource kind and name are required",
                     params=params
                 )
@@ -666,7 +666,7 @@ class KubernetesDescribeResourceTool(Tool):
             instance = self.toolset.get_instance(instance_name)
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kubernetes instance '{instance_name}' not found",
                     params=params
                 )
@@ -675,7 +675,7 @@ class KubernetesDescribeResourceTool(Tool):
             resource_info = self._describe_resource(instance, kind, name, namespace)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data={
                     'instance_name': instance_name,
                     'kind': kind,
@@ -689,7 +689,7 @@ class KubernetesDescribeResourceTool(Tool):
         except Exception as e:
             logger.error(f"Failed to describe Kubernetes resource: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to describe Kubernetes resource: {str(e)}",
                 params=params
             )
@@ -981,7 +981,7 @@ class KubernetesLogsTool(Tool):
 
             if not instance_name or not pod_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Instance name and pod name are required",
                     params=params
                 )
@@ -990,7 +990,7 @@ class KubernetesLogsTool(Tool):
             instance = self.toolset.get_instance(instance_name)
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kubernetes instance '{instance_name}' not found",
                     params=params
                 )
@@ -1001,7 +1001,7 @@ class KubernetesLogsTool(Tool):
             # Parse logs_data to check if it's from multiple containers
             if isinstance(logs_data, dict) and 'all_containers' in logs_data:
                 return StructuredToolResult(
-                    status=ToolResultStatus.SUCCESS,
+                    status=StructuredToolResultStatus.SUCCESS,
                     data={
                         'instance_name': instance_name,
                         'pod_name': pod_name,
@@ -1019,7 +1019,7 @@ class KubernetesLogsTool(Tool):
                 )
             else:
                 return StructuredToolResult(
-                    status=ToolResultStatus.SUCCESS,
+                    status=StructuredToolResultStatus.SUCCESS,
                     data={
                         'instance_name': instance_name,
                         'pod_name': pod_name,
@@ -1038,7 +1038,7 @@ class KubernetesLogsTool(Tool):
         except Exception as e:
             logger.error(f"Failed to fetch Kubernetes logs: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to fetch Kubernetes logs: {str(e)}",
                 params=params
             )
@@ -1433,7 +1433,7 @@ class KubernetesEventsTool(Tool):
 
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Instance name is required",
                     params=params
                 )
@@ -1442,7 +1442,7 @@ class KubernetesEventsTool(Tool):
             instance = self.toolset.get_instance(instance_name)
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kubernetes instance '{instance_name}' not found",
                     params=params
                 )
@@ -1451,7 +1451,7 @@ class KubernetesEventsTool(Tool):
             events_data = self._fetch_events(instance, resource_type, resource_name, namespace, output_format)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data={
                     'instance_name': instance_name,
                     'resource_type': resource_type,
@@ -1466,7 +1466,7 @@ class KubernetesEventsTool(Tool):
         except Exception as e:
             logger.error(f"Failed to fetch Kubernetes events: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to fetch Kubernetes events: {str(e)}",
                 params=params
             )
@@ -1731,7 +1731,7 @@ class KubernetesLogsSearchTool(Tool):
 
             if not instance_name or not pod_name or not search_term:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Instance name, pod name, and search term are required",
                     params=params
                 )
@@ -1740,7 +1740,7 @@ class KubernetesLogsSearchTool(Tool):
             instance = self.toolset.get_instance(instance_name)
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kubernetes instance '{instance_name}' not found",
                     params=params
                 )
@@ -1750,7 +1750,7 @@ class KubernetesLogsSearchTool(Tool):
             filtered_logs = self._filter_logs(logs_result, search_term, case_sensitive, invert_match)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data={
                     'instance_name': instance_name,
                     'pod_name': pod_name,
@@ -1770,7 +1770,7 @@ class KubernetesLogsSearchTool(Tool):
         except Exception as e:
             logger.error(f"Failed to search Kubernetes logs: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to search Kubernetes logs: {str(e)}",
                 params=params
             )
@@ -1971,14 +1971,14 @@ class KubernetesMetricsTool(Tool):
 
             if not instance_name or not resource_type:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Instance name and resource type are required",
                     params=params
                 )
 
             if resource_type not in ['pods', 'nodes']:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Resource type must be 'pods' or 'nodes'",
                     params=params
                 )
@@ -1987,7 +1987,7 @@ class KubernetesMetricsTool(Tool):
             instance = self.toolset.get_instance(instance_name)
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kubernetes instance '{instance_name}' not found",
                     params=params
                 )
@@ -1996,7 +1996,7 @@ class KubernetesMetricsTool(Tool):
             metrics_data = self._fetch_metrics(instance, resource_type, namespace)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data={
                     'instance_name': instance_name,
                     'resource_type': resource_type,
@@ -2009,7 +2009,7 @@ class KubernetesMetricsTool(Tool):
         except Exception as e:
             logger.error(f"Failed to fetch Kubernetes metrics: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to fetch Kubernetes metrics: {str(e)}",
                 params=params
             )
@@ -2192,7 +2192,7 @@ class KubernetesTroubleshootingTool(Tool):
 
             if not instance_name or not resource_type or not resource_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Instance name, resource type, and resource name are required",
                     params=params
                 )
@@ -2201,7 +2201,7 @@ class KubernetesTroubleshootingTool(Tool):
             instance = self.toolset.get_instance(instance_name)
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kubernetes instance '{instance_name}' not found",
                     params=params
                 )
@@ -2210,7 +2210,7 @@ class KubernetesTroubleshootingTool(Tool):
             troubleshooting_data = self._perform_troubleshooting(instance, resource_type, resource_name, namespace, troubleshooting_type)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=troubleshooting_data,
                 params=params
             )
@@ -2218,7 +2218,7 @@ class KubernetesTroubleshootingTool(Tool):
         except Exception as e:
             logger.error(f"Failed to perform Kubernetes troubleshooting: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to perform Kubernetes troubleshooting: {str(e)}",
                 params=params
             )
@@ -2508,7 +2508,7 @@ class KubernetesResourceAnalysisTool(Tool):
 
             if not instance_name or not analysis_type:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Instance name and analysis type are required",
                     params=params
                 )
@@ -2517,7 +2517,7 @@ class KubernetesResourceAnalysisTool(Tool):
             instance = self.toolset.get_instance(instance_name)
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kubernetes instance '{instance_name}' not found",
                     params=params
                 )
@@ -2526,7 +2526,7 @@ class KubernetesResourceAnalysisTool(Tool):
             analysis_data = self._perform_analysis(instance, analysis_type, namespace, resource_kind)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=analysis_data,
                 params=params
             )
@@ -2534,7 +2534,7 @@ class KubernetesResourceAnalysisTool(Tool):
         except Exception as e:
             logger.error(f"Failed to perform Kubernetes resource analysis: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to perform Kubernetes resource analysis: {str(e)}",
                 params=params
             )

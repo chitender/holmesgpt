@@ -3,7 +3,7 @@ import re
 from abc import abstractmethod
 from typing import Dict, Any, Tuple, Optional, TYPE_CHECKING, List
 from pydantic import Field, ConfigDict
-from holmes.core.tools import Tool, StructuredToolResult, ToolResultStatus, Toolset, ToolsetTag, ToolsetStatusEnum, CallablePrerequisite
+from holmes.core.tools import Tool, StructuredToolResult, StructuredToolResultStatus, Toolset, ToolsetTag, ToolsetStatusEnum, CallablePrerequisite
 from .infrainsights_client_v2 import InfraInsightsClientV2, InfraInsightsConfig, ServiceInstance
 
 if TYPE_CHECKING:

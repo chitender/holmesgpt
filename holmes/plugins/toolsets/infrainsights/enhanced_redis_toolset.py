@@ -1,7 +1,7 @@
 import json
 import logging
 from typing import Dict, Any, Optional
-from holmes.core.tools import Tool, ToolResultStatus, StructuredToolResult, Toolset, ToolsetTag, CallablePrerequisite, ToolParameter
+from holmes.core.tools import Tool, StructuredToolResultStatus, StructuredToolResult, Toolset, ToolsetTag, CallablePrerequisite, ToolParameter
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class RedisHealthCheckTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -38,7 +38,7 @@ class RedisHealthCheckTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -49,7 +49,7 @@ class RedisHealthCheckTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Redis instance '{instance_name}' not found",
                     params=params
                 )
@@ -57,7 +57,7 @@ class RedisHealthCheckTool(Tool):
             health_data = self.toolset.infrainsights_client.get_redis_health(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=health_data,
                 params=params
             )
@@ -65,7 +65,7 @@ class RedisHealthCheckTool(Tool):
         except Exception as e:
             logger.error(f"Error checking Redis health: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to check Redis health: {str(e)}",
                 params=params
             )
@@ -103,7 +103,7 @@ class RedisPerformanceMetricsTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -112,7 +112,7 @@ class RedisPerformanceMetricsTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -123,7 +123,7 @@ class RedisPerformanceMetricsTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Redis instance '{instance_name}' not found",
                     params=params
                 )
@@ -133,7 +133,7 @@ class RedisPerformanceMetricsTool(Tool):
             )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=metrics_data,
                 params=params
             )
@@ -141,7 +141,7 @@ class RedisPerformanceMetricsTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing Redis performance: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze Redis performance: {str(e)}",
                 params=params
             )
@@ -180,7 +180,7 @@ class RedisMemoryAnalysisTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -189,7 +189,7 @@ class RedisMemoryAnalysisTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -200,7 +200,7 @@ class RedisMemoryAnalysisTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Redis instance '{instance_name}' not found",
                     params=params
                 )
@@ -210,7 +210,7 @@ class RedisMemoryAnalysisTool(Tool):
             )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=memory_data,
                 params=params
             )
@@ -218,7 +218,7 @@ class RedisMemoryAnalysisTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing Redis memory: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze Redis memory: {str(e)}",
                 params=params
             )
@@ -262,7 +262,7 @@ class RedisKeyAnalysisTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -271,7 +271,7 @@ class RedisKeyAnalysisTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -282,7 +282,7 @@ class RedisKeyAnalysisTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Redis instance '{instance_name}' not found",
                     params=params
                 )
@@ -295,7 +295,7 @@ class RedisKeyAnalysisTool(Tool):
             )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=key_data,
                 params=params
             )
@@ -303,7 +303,7 @@ class RedisKeyAnalysisTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing Redis keys: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze Redis keys: {str(e)}",
                 params=params
             )
@@ -342,7 +342,7 @@ class RedisSlowLogAnalysisTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -351,7 +351,7 @@ class RedisSlowLogAnalysisTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -362,7 +362,7 @@ class RedisSlowLogAnalysisTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Redis instance '{instance_name}' not found",
                     params=params
                 )
@@ -372,7 +372,7 @@ class RedisSlowLogAnalysisTool(Tool):
             )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=slow_log_data,
                 params=params
             )
@@ -380,7 +380,7 @@ class RedisSlowLogAnalysisTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing Redis slow log: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze Redis slow log: {str(e)}",
                 params=params
             )
@@ -419,7 +419,7 @@ class RedisConnectionAnalysisTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -428,7 +428,7 @@ class RedisConnectionAnalysisTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -439,7 +439,7 @@ class RedisConnectionAnalysisTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Redis instance '{instance_name}' not found",
                     params=params
                 )
@@ -449,7 +449,7 @@ class RedisConnectionAnalysisTool(Tool):
             )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=connection_data,
                 params=params
             )
@@ -457,7 +457,7 @@ class RedisConnectionAnalysisTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing Redis connections: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze Redis connections: {str(e)}",
                 params=params
             )
@@ -491,7 +491,7 @@ class RedisReplicationStatusTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -500,7 +500,7 @@ class RedisReplicationStatusTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -511,7 +511,7 @@ class RedisReplicationStatusTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Redis instance '{instance_name}' not found",
                     params=params
                 )
@@ -519,7 +519,7 @@ class RedisReplicationStatusTool(Tool):
             replication_data = self.toolset.infrainsights_client.get_redis_replication_status(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=replication_data,
                 params=params
             )
@@ -527,7 +527,7 @@ class RedisReplicationStatusTool(Tool):
         except Exception as e:
             logger.error(f"Error checking Redis replication: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to check Redis replication: {str(e)}",
                 params=params
             )
@@ -560,7 +560,7 @@ class RedisPersistenceAnalysisTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -569,7 +569,7 @@ class RedisPersistenceAnalysisTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -580,7 +580,7 @@ class RedisPersistenceAnalysisTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Redis instance '{instance_name}' not found",
                     params=params
                 )
@@ -588,7 +588,7 @@ class RedisPersistenceAnalysisTool(Tool):
             persistence_data = self.toolset.infrainsights_client.get_redis_persistence_analysis(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=persistence_data,
                 params=params
             )
@@ -596,7 +596,7 @@ class RedisPersistenceAnalysisTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing Redis persistence: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze Redis persistence: {str(e)}",
                 params=params
             )
@@ -634,7 +634,7 @@ class RedisClusterAnalysisTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -643,7 +643,7 @@ class RedisClusterAnalysisTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -654,7 +654,7 @@ class RedisClusterAnalysisTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Redis cluster '{instance_name}' not found",
                     params=params
                 )
@@ -664,7 +664,7 @@ class RedisClusterAnalysisTool(Tool):
             )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=cluster_data,
                 params=params
             )
@@ -672,7 +672,7 @@ class RedisClusterAnalysisTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing Redis cluster: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze Redis cluster: {str(e)}",
                 params=params
             )
@@ -711,7 +711,7 @@ class RedisSecurityAuditTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -720,7 +720,7 @@ class RedisSecurityAuditTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -731,7 +731,7 @@ class RedisSecurityAuditTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Redis instance '{instance_name}' not found",
                     params=params
                 )
@@ -741,7 +741,7 @@ class RedisSecurityAuditTool(Tool):
             )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=security_data,
                 params=params
             )
@@ -749,7 +749,7 @@ class RedisSecurityAuditTool(Tool):
         except Exception as e:
             logger.error(f"Error auditing Redis security: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to audit Redis security: {str(e)}",
                 params=params
             )
@@ -788,7 +788,7 @@ class RedisCapacityPlanningTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -797,7 +797,7 @@ class RedisCapacityPlanningTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -808,7 +808,7 @@ class RedisCapacityPlanningTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Redis instance '{instance_name}' not found",
                     params=params
                 )
@@ -818,7 +818,7 @@ class RedisCapacityPlanningTool(Tool):
             )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=capacity_data,
                 params=params
             )
@@ -826,7 +826,7 @@ class RedisCapacityPlanningTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing Redis capacity: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze Redis capacity: {str(e)}",
                 params=params
             )
@@ -865,7 +865,7 @@ class RedisConfigurationAnalysisTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -874,7 +874,7 @@ class RedisConfigurationAnalysisTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -885,7 +885,7 @@ class RedisConfigurationAnalysisTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Redis instance '{instance_name}' not found",
                     params=params
                 )
@@ -895,7 +895,7 @@ class RedisConfigurationAnalysisTool(Tool):
             )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=config_data,
                 params=params
             )
@@ -903,7 +903,7 @@ class RedisConfigurationAnalysisTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing Redis configuration: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze Redis configuration: {str(e)}",
                 params=params
             )

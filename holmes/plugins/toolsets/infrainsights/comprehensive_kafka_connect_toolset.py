@@ -2,7 +2,7 @@ import json
 import logging
 import requests
 from typing import Dict, Any, Optional, List
-from holmes.core.tools import Tool, ToolResultStatus, StructuredToolResult, Toolset, ToolsetTag, CallablePrerequisite, ToolParameter
+from holmes.core.tools import Tool, StructuredToolResultStatus, StructuredToolResult, Toolset, ToolsetTag, CallablePrerequisite, ToolParameter
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class KafkaConnectHealthCheckTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -43,7 +43,7 @@ class KafkaConnectHealthCheckTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -55,7 +55,7 @@ class KafkaConnectHealthCheckTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka Connect instance '{instance_name}' not found",
                     params=params
                 )
@@ -66,7 +66,7 @@ class KafkaConnectHealthCheckTool(Tool):
             
             if not rest_url:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Kafka Connect REST URL not configured",
                     params=params
                 )
@@ -95,20 +95,20 @@ class KafkaConnectHealthCheckTool(Tool):
                     }
                     
                     return StructuredToolResult(
-                        status=ToolResultStatus.SUCCESS,
+                        status=StructuredToolResultStatus.SUCCESS,
                         data=health_data,
                         params=params
                     )
                 else:
                     return StructuredToolResult(
-                        status=ToolResultStatus.ERROR,
+                        status=StructuredToolResultStatus.ERROR,
                         error=f"Kafka Connect REST API returned status {response.status_code}",
                         params=params
                     )
                     
             except requests.exceptions.RequestException as e:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Failed to connect to Kafka Connect REST API: {str(e)}",
                     params=params
                 )
@@ -116,7 +116,7 @@ class KafkaConnectHealthCheckTool(Tool):
         except Exception as e:
             logger.error(f"Failed to check Kafka Connect health: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to check Kafka Connect health: {str(e)}",
                 params=params
             )
@@ -155,7 +155,7 @@ class KafkaConnectListConnectorsTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -169,7 +169,7 @@ class KafkaConnectListConnectorsTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka Connect instance '{instance_name}' not found",
                     params=params
                 )
@@ -179,7 +179,7 @@ class KafkaConnectListConnectorsTool(Tool):
             
             if not rest_url:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Kafka Connect REST URL not configured",
                     params=params
                 )
@@ -188,7 +188,7 @@ class KafkaConnectListConnectorsTool(Tool):
             response = requests.get(f"{rest_url}/connectors", timeout=10)
             if response.status_code != 200:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Failed to get connectors: {response.status_code}",
                     params=params
                 )
@@ -234,7 +234,7 @@ class KafkaConnectListConnectorsTool(Tool):
                 connectors_data.append(connector_info)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data={
                     "instance_name": instance_name,
                     "connector_count": len(connectors_data),
@@ -246,7 +246,7 @@ class KafkaConnectListConnectorsTool(Tool):
         except Exception as e:
             logger.error(f"Failed to list Kafka Connect connectors: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to list Kafka Connect connectors: {str(e)}",
                 params=params
             )
@@ -285,7 +285,7 @@ class KafkaConnectConnectorDetailsTool(Tool):
             
             if not instance_name or not connector_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Both instance_name and connector_name parameters are required",
                     params=params
                 )
@@ -299,7 +299,7 @@ class KafkaConnectConnectorDetailsTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka Connect instance '{instance_name}' not found",
                     params=params
                 )
@@ -309,7 +309,7 @@ class KafkaConnectConnectorDetailsTool(Tool):
             
             if not rest_url:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Kafka Connect REST URL not configured",
                     params=params
                 )
@@ -351,7 +351,7 @@ class KafkaConnectConnectorDetailsTool(Tool):
                 connector_data["topics"] = {"error": str(e)}
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=connector_data,
                 params=params
             )
@@ -359,7 +359,7 @@ class KafkaConnectConnectorDetailsTool(Tool):
         except Exception as e:
             logger.error(f"Failed to get Kafka Connect connector details: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to get Kafka Connect connector details: {str(e)}",
                 params=params
             )
@@ -408,7 +408,7 @@ class KafkaConnectCreateConnectorTool(Tool):
             
             if not all([instance_name, connector_name, connector_config_str]):
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name, connector_name, and connector_config parameters are required",
                     params=params
                 )
@@ -420,7 +420,7 @@ class KafkaConnectCreateConnectorTool(Tool):
                 connector_config = json.loads(connector_config_str)
             except json.JSONDecodeError as e:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Invalid JSON in connector_config: {str(e)}",
                     params=params
                 )
@@ -432,7 +432,7 @@ class KafkaConnectCreateConnectorTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka Connect instance '{instance_name}' not found",
                     params=params
                 )
@@ -442,7 +442,7 @@ class KafkaConnectCreateConnectorTool(Tool):
             
             if not rest_url:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Kafka Connect REST URL not configured",
                     params=params
                 )
@@ -463,7 +463,7 @@ class KafkaConnectCreateConnectorTool(Tool):
             if response.status_code == 201:
                 result_data = response.json()
                 return StructuredToolResult(
-                    status=ToolResultStatus.SUCCESS,
+                    status=StructuredToolResultStatus.SUCCESS,
                     data={
                         "message": f"Connector {connector_name} created successfully",
                         "connector_info": result_data
@@ -479,7 +479,7 @@ class KafkaConnectCreateConnectorTool(Tool):
                     error_msg += f" - {response.text}"
                 
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=error_msg,
                     params=params
                 )
@@ -487,7 +487,7 @@ class KafkaConnectCreateConnectorTool(Tool):
         except Exception as e:
             logger.error(f"Failed to create Kafka Connect connector: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to create Kafka Connect connector: {str(e)}",
                 params=params
             )
@@ -532,7 +532,7 @@ class KafkaConnectUpdateConnectorTool(Tool):
             
             if not all([instance_name, connector_name, connector_config_str]):
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name, connector_name, and connector_config parameters are required",
                     params=params
                 )
@@ -544,7 +544,7 @@ class KafkaConnectUpdateConnectorTool(Tool):
                 connector_config = json.loads(connector_config_str)
             except json.JSONDecodeError as e:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Invalid JSON in connector_config: {str(e)}",
                     params=params
                 )
@@ -556,7 +556,7 @@ class KafkaConnectUpdateConnectorTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka Connect instance '{instance_name}' not found",
                     params=params
                 )
@@ -566,7 +566,7 @@ class KafkaConnectUpdateConnectorTool(Tool):
             
             if not rest_url:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Kafka Connect REST URL not configured",
                     params=params
                 )
@@ -582,7 +582,7 @@ class KafkaConnectUpdateConnectorTool(Tool):
             if response.status_code == 200:
                 result_data = response.json()
                 return StructuredToolResult(
-                    status=ToolResultStatus.SUCCESS,
+                    status=StructuredToolResultStatus.SUCCESS,
                     data={
                         "message": f"Connector {connector_name} updated successfully",
                         "connector_info": result_data
@@ -598,7 +598,7 @@ class KafkaConnectUpdateConnectorTool(Tool):
                     error_msg += f" - {response.text}"
                 
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=error_msg,
                     params=params
                 )
@@ -606,7 +606,7 @@ class KafkaConnectUpdateConnectorTool(Tool):
         except Exception as e:
             logger.error(f"Failed to update Kafka Connect connector: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to update Kafka Connect connector: {str(e)}",
                 params=params
             )
@@ -645,7 +645,7 @@ class KafkaConnectDeleteConnectorTool(Tool):
             
             if not instance_name or not connector_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Both instance_name and connector_name parameters are required",
                     params=params
                 )
@@ -659,7 +659,7 @@ class KafkaConnectDeleteConnectorTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka Connect instance '{instance_name}' not found",
                     params=params
                 )
@@ -669,7 +669,7 @@ class KafkaConnectDeleteConnectorTool(Tool):
             
             if not rest_url:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Kafka Connect REST URL not configured",
                     params=params
                 )
@@ -679,7 +679,7 @@ class KafkaConnectDeleteConnectorTool(Tool):
             
             if response.status_code == 204:
                 return StructuredToolResult(
-                    status=ToolResultStatus.SUCCESS,
+                    status=StructuredToolResultStatus.SUCCESS,
                     data={
                         "message": f"Connector {connector_name} deleted successfully"
                     },
@@ -694,7 +694,7 @@ class KafkaConnectDeleteConnectorTool(Tool):
                     error_msg += f" - {response.text}"
                 
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=error_msg,
                     params=params
                 )
@@ -702,7 +702,7 @@ class KafkaConnectDeleteConnectorTool(Tool):
         except Exception as e:
             logger.error(f"Failed to delete Kafka Connect connector: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to delete Kafka Connect connector: {str(e)}",
                 params=params
             )
@@ -745,7 +745,7 @@ class KafkaConnectConnectorStatusTool(Tool):
             
             if not instance_name or not connector_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Both instance_name and connector_name parameters are required",
                     params=params
                 )
@@ -759,7 +759,7 @@ class KafkaConnectConnectorStatusTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka Connect instance '{instance_name}' not found",
                     params=params
                 )
@@ -769,7 +769,7 @@ class KafkaConnectConnectorStatusTool(Tool):
             
             if not rest_url:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Kafka Connect REST URL not configured",
                     params=params
                 )
@@ -802,7 +802,7 @@ class KafkaConnectConnectorStatusTool(Tool):
                     issues.append(f"Found {len(failed_tasks)} failed tasks")
                 
                 return StructuredToolResult(
-                    status=ToolResultStatus.SUCCESS,
+                    status=StructuredToolResultStatus.SUCCESS,
                     data={
                         "connector_name": connector_name,
                         "instance_name": instance_name,
@@ -826,7 +826,7 @@ class KafkaConnectConnectorStatusTool(Tool):
                     error_msg += f" - {response.text}"
                 
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=error_msg,
                     params=params
                 )
@@ -834,7 +834,7 @@ class KafkaConnectConnectorStatusTool(Tool):
         except Exception as e:
             logger.error(f"Failed to get Kafka Connect connector status: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to get Kafka Connect connector status: {str(e)}",
                 params=params
             )
@@ -879,7 +879,7 @@ class KafkaConnectRestartConnectorTool(Tool):
             
             if not instance_name or not connector_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Both instance_name and connector_name parameters are required",
                     params=params
                 )
@@ -893,7 +893,7 @@ class KafkaConnectRestartConnectorTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka Connect instance '{instance_name}' not found",
                     params=params
                 )
@@ -903,7 +903,7 @@ class KafkaConnectRestartConnectorTool(Tool):
             
             if not rest_url:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Kafka Connect REST URL not configured",
                     params=params
                 )
@@ -937,7 +937,7 @@ class KafkaConnectRestartConnectorTool(Tool):
                                 restart_results.append(f"Failed to restart task {task_id}: {task_response.status_code}")
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data={
                     "message": f"Restart operations completed for connector {connector_name}",
                     "results": restart_results
@@ -948,7 +948,7 @@ class KafkaConnectRestartConnectorTool(Tool):
         except Exception as e:
             logger.error(f"Failed to restart Kafka Connect connector: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to restart Kafka Connect connector: {str(e)}",
                 params=params
             )

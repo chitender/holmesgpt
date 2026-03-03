@@ -14,7 +14,7 @@ from holmes.core.tools import (
     ToolsetTag,
     CallablePrerequisite,
     StructuredToolResult,
-    ToolResultStatus,
+    StructuredToolResultStatus,
 )
 
 # Configure logging
@@ -421,7 +421,7 @@ class FetchTraces(Tool):
 
             if not tempo_url:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Config must provide 'tempo_url'.",
                     params=params,
                 )
@@ -435,7 +435,7 @@ class FetchTraces(Tool):
                 kube_cluster_name = prompt_cluster
             elif not kube_cluster_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Could not determine Kubernetes cluster name from prompt. Please specify the cluster in your request.",
                     params=params,
                 )
@@ -531,32 +531,32 @@ class FetchTraces(Tool):
             }
 
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS, data=result, params=params
+                status=StructuredToolResultStatus.SUCCESS, data=result, params=params
             )
         except requests.exceptions.Timeout:
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error="Request to Tempo timed out. Please try again.",
                 params=params,
             )
         except requests.exceptions.RequestException as e:
             logger.error(f"HTTP request failed: {e}")
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Error fetching traces: HTTP {e}",
                 params=params,
             )
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON response: {e}")
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Error parsing response: {e}",
                 params=params,
             )
         except Exception as e:
             logger.exception("Unexpected error fetching traces")
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Error fetching traces: {e}",
                 params=params,
             )
@@ -621,7 +621,7 @@ class FetchServiceTraces(Tool):
 
             if not tempo_url:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Config must provide 'tempo_url'.",
                     params=params,
                 )
@@ -634,7 +634,7 @@ class FetchServiceTraces(Tool):
             namespace = kube_info["namespace"]
             if not service_name or not namespace:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Could not determine service name or namespace from prompt. Please specify both in your request.",
                     params=params,
                 )
@@ -645,7 +645,7 @@ class FetchServiceTraces(Tool):
                 kube_cluster_name = prompt_cluster
             elif not kube_cluster_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Could not determine Kubernetes cluster name from prompt. Please specify the cluster in your request.",
                     params=params,
                 )
@@ -733,32 +733,32 @@ class FetchServiceTraces(Tool):
             }
 
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS, data=result, params=params
+                status=StructuredToolResultStatus.SUCCESS, data=result, params=params
             )
         except requests.exceptions.Timeout:
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error="Request to Tempo timed out. Please try again.",
                 params=params,
             )
         except requests.exceptions.RequestException as e:
             logger.error(f"HTTP request failed: {e}")
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Error fetching traces: HTTP {e}",
                 params=params,
             )
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON response: {e}")
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Error parsing response: {e}",
                 params=params,
             )
         except Exception as e:
             logger.exception("Unexpected error fetching traces")
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Error fetching traces: {e}",
                 params=params,
             )
@@ -834,7 +834,7 @@ class AnalyzeTraceRCA(Tool):
             trace_id = PromptParser.extract_trace_id(user_prompt)
             if not trace_id:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Could not determine trace ID from prompt. Please specify the trace ID in your request.",
                     params=params,
                 )
@@ -847,7 +847,7 @@ class AnalyzeTraceRCA(Tool):
             tempo_url = os.getenv("TEMPO_URL", self.toolset.config.get("tempo_url"))
             if not tempo_url:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Config must provide 'tempo_url'.",
                     params=params,
                 )
@@ -919,28 +919,28 @@ class AnalyzeTraceRCA(Tool):
                 trace_details = response_trace.json()
             except requests.exceptions.Timeout:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Request to Tempo timed out. Please try again.",
                     params=params,
                 )
             except requests.exceptions.RequestException as e:
                 logger.error(f"HTTP request failed: {e}")
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Error fetching trace details: HTTP {e}",
                     params=params,
                 )
             except json.JSONDecodeError as e:
                 logger.error(f"Invalid JSON response: {e}")
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Error parsing response: {e}",
                     params=params,
                 )
             except Exception as e:
                 logger.exception("Failed to fetch trace details")
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Error fetching trace details: {e}",
                     params=params,
                 )
@@ -949,7 +949,7 @@ class AnalyzeTraceRCA(Tool):
             traces_data = trace_details.get("data", {}).get("traces", [])
             if not traces_data:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="No traces found in the response.",
                     params=params,
                 )
@@ -963,7 +963,7 @@ class AnalyzeTraceRCA(Tool):
             
             if not service_exec_times:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="No service execution time data found in the trace.",
                     params=params,
                 )
@@ -1037,28 +1037,28 @@ class AnalyzeTraceRCA(Tool):
                 span_details = response_span.json()
             except requests.exceptions.Timeout:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="Request to Tempo timed out. Please try again.",
                     params=params,
                 )
             except requests.exceptions.RequestException as e:
                 logger.error(f"HTTP request failed: {e}")
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Error fetching span details: HTTP {e}",
                     params=params,
                 )
             except json.JSONDecodeError as e:
                 logger.error(f"Invalid JSON response: {e}")
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Error parsing response: {e}",
                     params=params,
                 )
             except Exception as e:
                 logger.exception("Failed to fetch span details")
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Error fetching span details: {e}",
                     params=params,
                 )
@@ -1154,32 +1154,32 @@ class AnalyzeTraceRCA(Tool):
             }
 
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS, data=result, params=params
+                status=StructuredToolResultStatus.SUCCESS, data=result, params=params
             )
         except requests.exceptions.Timeout:
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error="Request to Tempo timed out. Please try again.",
                 params=params,
             )
         except requests.exceptions.RequestException as e:
             logger.error(f"HTTP request failed: {e}")
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Error analyzing trace: HTTP {e}",
                 params=params,
             )
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON response: {e}")
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Error parsing response: {e}",
                 params=params,
             )
         except Exception as e:
             logger.exception("Unexpected error analyzing trace")
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Error analyzing trace: {e}",
                 params=params,
             )

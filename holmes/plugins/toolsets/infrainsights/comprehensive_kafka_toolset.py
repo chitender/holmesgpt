@@ -1,7 +1,7 @@
 import json
 import logging
 from typing import Dict, Any, Optional, List
-from holmes.core.tools import Tool, ToolResultStatus, StructuredToolResult, Toolset, ToolsetTag, CallablePrerequisite, ToolParameter
+from holmes.core.tools import Tool, StructuredToolResultStatus, StructuredToolResult, Toolset, ToolsetTag, CallablePrerequisite, ToolParameter
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class KafkaHealthCheckTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -42,7 +42,7 @@ class KafkaHealthCheckTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -54,7 +54,7 @@ class KafkaHealthCheckTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka instance '{instance_name}' not found",
                     params=params
                 )
@@ -70,7 +70,7 @@ class KafkaHealthCheckTool(Tool):
                 from confluent_kafka import KafkaError
             except ImportError:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="confluent-kafka library not installed",
                     params=params
                 )
@@ -133,7 +133,7 @@ class KafkaHealthCheckTool(Tool):
                 }
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=health_data,
                 params=params
             )
@@ -141,7 +141,7 @@ class KafkaHealthCheckTool(Tool):
         except Exception as e:
             logger.error(f"Error checking Kafka health: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to check Kafka health: {str(e)}",
                 params=params
             )
@@ -179,7 +179,7 @@ class KafkaListTopicsTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -188,7 +188,7 @@ class KafkaListTopicsTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -200,7 +200,7 @@ class KafkaListTopicsTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka instance '{instance_name}' not found",
                     params=params
                 )
@@ -214,7 +214,7 @@ class KafkaListTopicsTool(Tool):
                 from confluent_kafka.admin import AdminClient
             except ImportError:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="confluent-kafka library not installed",
                     params=params
                 )
@@ -276,13 +276,13 @@ class KafkaListTopicsTool(Tool):
                 
             except Exception as e:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Failed to list topics: {str(e)}",
                     params=params
                 )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=result_data,
                 params=params
             )
@@ -290,7 +290,7 @@ class KafkaListTopicsTool(Tool):
         except Exception as e:
             logger.error(f"Error listing Kafka topics: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to list Kafka topics: {str(e)}",
                 params=params
             )
@@ -354,7 +354,7 @@ class KafkaTopicDetailsTool(Tool):
             
             if not instance_name or not topic_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name and topic_name parameters are required",
                     params=params
                 )
@@ -363,7 +363,7 @@ class KafkaTopicDetailsTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -375,7 +375,7 @@ class KafkaTopicDetailsTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka instance '{instance_name}' not found",
                     params=params
                 )
@@ -389,7 +389,7 @@ class KafkaTopicDetailsTool(Tool):
                 from confluent_kafka import Consumer
             except ImportError:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="confluent-kafka library not installed",
                     params=params
                 )
@@ -406,7 +406,7 @@ class KafkaTopicDetailsTool(Tool):
                 if topic_name not in metadata.topics:
                     
                     return StructuredToolResult(
-                        status=ToolResultStatus.ERROR,
+                        status=StructuredToolResultStatus.ERROR,
                         error=f"Topic '{topic_name}' not found",
                         params=params
                     )
@@ -456,13 +456,13 @@ class KafkaTopicDetailsTool(Tool):
                 
             except Exception as e:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Failed to get topic details: {str(e)}",
                     params=params
                 )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=topic_details,
                 params=params
             )
@@ -470,7 +470,7 @@ class KafkaTopicDetailsTool(Tool):
         except Exception as e:
             logger.error(f"Error getting Kafka topic details: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to get Kafka topic details: {str(e)}",
                 params=params
             )
@@ -564,7 +564,7 @@ class KafkaConsumerGroupsTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -573,7 +573,7 @@ class KafkaConsumerGroupsTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -585,7 +585,7 @@ class KafkaConsumerGroupsTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka instance '{instance_name}' not found",
                     params=params
                 )
@@ -598,7 +598,7 @@ class KafkaConsumerGroupsTool(Tool):
                 from confluent_kafka.admin import AdminClient
             except ImportError:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="confluent-kafka library not installed",
                     params=params
                 )
@@ -637,13 +637,13 @@ class KafkaConsumerGroupsTool(Tool):
                 
             except Exception as e:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Failed to get consumer groups: {str(e)}",
                     params=params
                 )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=result_data,
                 params=params
             )
@@ -651,7 +651,7 @@ class KafkaConsumerGroupsTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing Kafka consumer groups: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze Kafka consumer groups: {str(e)}",
                 params=params
             )
@@ -800,7 +800,7 @@ class KafkaProducerPerformanceTool(Tool):
             
             if not instance_name or not topic_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name and topic_name parameters are required",
                     params=params
                 )
@@ -809,7 +809,7 @@ class KafkaProducerPerformanceTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -821,7 +821,7 @@ class KafkaProducerPerformanceTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka instance '{instance_name}' not found",
                     params=params
                 )
@@ -835,7 +835,7 @@ class KafkaProducerPerformanceTool(Tool):
                 import time
             except ImportError:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="confluent-kafka library not installed",
                     params=params
                 )
@@ -900,13 +900,13 @@ class KafkaProducerPerformanceTool(Tool):
                 
             except Exception as e:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Producer performance test failed: {str(e)}",
                     params=params
                 )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=performance_data,
                 params=params
             )
@@ -914,7 +914,7 @@ class KafkaProducerPerformanceTool(Tool):
         except Exception as e:
             logger.error(f"Error testing Kafka producer performance: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to test Kafka producer performance: {str(e)}",
                 params=params
             )
@@ -979,7 +979,7 @@ class KafkaConsumerLagTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -988,7 +988,7 @@ class KafkaConsumerLagTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -1000,7 +1000,7 @@ class KafkaConsumerLagTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka instance '{instance_name}' not found",
                     params=params
                 )
@@ -1015,7 +1015,7 @@ class KafkaConsumerLagTool(Tool):
                 from confluent_kafka import Consumer, TopicPartition
             except ImportError:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="confluent-kafka library not installed",
                     params=params
                 )
@@ -1113,13 +1113,13 @@ class KafkaConsumerLagTool(Tool):
                 
             except Exception as e:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Failed to analyze consumer lag: {str(e)}",
                     params=params
                 )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=lag_analysis,
                 params=params
             )
@@ -1127,7 +1127,7 @@ class KafkaConsumerLagTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing Kafka consumer lag: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze Kafka consumer lag: {str(e)}",
                 params=params
             )
@@ -1202,7 +1202,7 @@ class KafkaPartitionAnalysisTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -1211,7 +1211,7 @@ class KafkaPartitionAnalysisTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -1223,7 +1223,7 @@ class KafkaPartitionAnalysisTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka instance '{instance_name}' not found",
                     params=params
                 )
@@ -1236,7 +1236,7 @@ class KafkaPartitionAnalysisTool(Tool):
                 from confluent_kafka.admin import AdminClient
             except ImportError:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="confluent-kafka library not installed",
                     params=params
                 )
@@ -1337,13 +1337,13 @@ class KafkaPartitionAnalysisTool(Tool):
                 
             except Exception as e:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Failed to analyze partitions: {str(e)}",
                     params=params
                 )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=partition_analysis,
                 params=params
             )
@@ -1351,7 +1351,7 @@ class KafkaPartitionAnalysisTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing Kafka partitions: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze Kafka partitions: {str(e)}",
                 params=params
             )
@@ -1425,7 +1425,7 @@ class KafkaMessageAnalysisTool(Tool):
             
             if not instance_name or not topic_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name and topic_name parameters are required",
                     params=params
                 )
@@ -1434,7 +1434,7 @@ class KafkaMessageAnalysisTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -1446,7 +1446,7 @@ class KafkaMessageAnalysisTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka instance '{instance_name}' not found",
                     params=params
                 )
@@ -1461,7 +1461,7 @@ class KafkaMessageAnalysisTool(Tool):
                 import time
             except ImportError:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="confluent-kafka library not installed",
                     params=params
                 )
@@ -1487,7 +1487,7 @@ class KafkaMessageAnalysisTool(Tool):
                 if topic_name not in metadata.topics:
                     consumer.close()
                     return StructuredToolResult(
-                        status=ToolResultStatus.ERROR,
+                        status=StructuredToolResultStatus.ERROR,
                         error=f"Topic '{topic_name}' not found or no partitions available",
                         params=params
                     )
@@ -1579,13 +1579,13 @@ class KafkaMessageAnalysisTool(Tool):
                 
             except Exception as e:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Failed to analyze messages: {str(e)}",
                     params=params
                 )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=message_analysis,
                 params=params
             )
@@ -1593,7 +1593,7 @@ class KafkaMessageAnalysisTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing Kafka messages: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze Kafka messages: {str(e)}",
                 params=params
             )
@@ -1711,7 +1711,7 @@ class KafkaBrokerMetricsTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -1720,7 +1720,7 @@ class KafkaBrokerMetricsTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -1732,7 +1732,7 @@ class KafkaBrokerMetricsTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka instance '{instance_name}' not found",
                     params=params
                 )
@@ -1745,7 +1745,7 @@ class KafkaBrokerMetricsTool(Tool):
                 from confluent_kafka.admin import AdminClient, ConfigResource, ConfigResourceType
             except ImportError:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="confluent-kafka library not installed",
                     params=params
                 )
@@ -1824,13 +1824,13 @@ class KafkaBrokerMetricsTool(Tool):
                 
             except Exception as e:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Failed to get broker metrics: {str(e)}",
                     params=params
                 )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=result_data,
                 params=params
             )
@@ -1838,7 +1838,7 @@ class KafkaBrokerMetricsTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing Kafka broker metrics: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze Kafka broker metrics: {str(e)}",
                 params=params
             )
@@ -1906,7 +1906,7 @@ class KafkaSecurityAuditTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -1915,7 +1915,7 @@ class KafkaSecurityAuditTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -1927,7 +1927,7 @@ class KafkaSecurityAuditTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka instance '{instance_name}' not found",
                     params=params
                 )
@@ -2001,7 +2001,7 @@ class KafkaSecurityAuditTool(Tool):
                     }
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=security_audit,
                 params=params
             )
@@ -2009,7 +2009,7 @@ class KafkaSecurityAuditTool(Tool):
         except Exception as e:
             logger.error(f"Error auditing Kafka security: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to audit Kafka security: {str(e)}",
                 params=params
             )
@@ -2100,7 +2100,7 @@ class KafkaCapacityPlanningTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -2109,7 +2109,7 @@ class KafkaCapacityPlanningTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -2121,7 +2121,7 @@ class KafkaCapacityPlanningTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka instance '{instance_name}' not found",
                     params=params
                 )
@@ -2136,7 +2136,7 @@ class KafkaCapacityPlanningTool(Tool):
                 from confluent_kafka import Consumer, TopicPartition
             except ImportError:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="confluent-kafka library not installed",
                     params=params
                 )
@@ -2253,13 +2253,13 @@ class KafkaCapacityPlanningTool(Tool):
                 
             except Exception as e:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Failed to analyze capacity: {str(e)}",
                     params=params
                 )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=capacity_analysis,
                 params=params
             )
@@ -2267,7 +2267,7 @@ class KafkaCapacityPlanningTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing Kafka capacity: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze Kafka capacity: {str(e)}",
                 params=params
             )
@@ -2344,7 +2344,7 @@ class KafkaConfigurationOptimizationTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -2353,7 +2353,7 @@ class KafkaConfigurationOptimizationTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -2365,7 +2365,7 @@ class KafkaConfigurationOptimizationTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Kafka instance '{instance_name}' not found",
                     params=params
                 )
@@ -2379,7 +2379,7 @@ class KafkaConfigurationOptimizationTool(Tool):
                 from confluent_kafka.admin import AdminClient, ConfigResource, ConfigResourceType
             except ImportError:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="confluent-kafka library not installed",
                     params=params
                 )
@@ -2466,13 +2466,13 @@ class KafkaConfigurationOptimizationTool(Tool):
                 
             except Exception as e:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Failed to analyze configuration: {str(e)}",
                     params=params
                 )
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=configuration_analysis,
                 params=params
             )
@@ -2480,7 +2480,7 @@ class KafkaConfigurationOptimizationTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing Kafka configuration: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze Kafka configuration: {str(e)}",
                 params=params
             )

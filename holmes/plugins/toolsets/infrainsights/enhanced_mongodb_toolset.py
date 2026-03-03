@@ -1,7 +1,7 @@
 import json
 import logging
 from typing import Dict, Any, Optional
-from holmes.core.tools import Tool, ToolResultStatus, StructuredToolResult, Toolset, ToolsetTag, CallablePrerequisite, ToolParameter
+from holmes.core.tools import Tool, StructuredToolResultStatus, StructuredToolResult, Toolset, ToolsetTag, CallablePrerequisite, ToolParameter
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class MongoDBHealthCheckTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -38,7 +38,7 @@ class MongoDBHealthCheckTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -49,7 +49,7 @@ class MongoDBHealthCheckTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"MongoDB instance '{instance_name}' not found",
                     params=params
                 )
@@ -57,7 +57,7 @@ class MongoDBHealthCheckTool(Tool):
             health_data = self.toolset.infrainsights_client.get_mongodb_health(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=health_data,
                 params=params
             )
@@ -65,7 +65,7 @@ class MongoDBHealthCheckTool(Tool):
         except Exception as e:
             logger.error(f"Error checking MongoDB health: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to check MongoDB health: {str(e)}",
                 params=params
             )
@@ -98,7 +98,7 @@ class MongoDBDatabaseListTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -107,7 +107,7 @@ class MongoDBDatabaseListTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -118,7 +118,7 @@ class MongoDBDatabaseListTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"MongoDB instance '{instance_name}' not found",
                     params=params
                 )
@@ -126,7 +126,7 @@ class MongoDBDatabaseListTool(Tool):
             databases_data = self.toolset.infrainsights_client.get_mongodb_databases(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=databases_data,
                 params=params
             )
@@ -134,7 +134,7 @@ class MongoDBDatabaseListTool(Tool):
         except Exception as e:
             logger.error(f"Error listing MongoDB databases: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to list MongoDB databases: {str(e)}",
                 params=params
             )
@@ -180,14 +180,14 @@ class MongoDBCollectionStatsTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
                 
             if not database_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="database_name parameter is required",
                     params=params
                 )
@@ -196,7 +196,7 @@ class MongoDBCollectionStatsTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -207,7 +207,7 @@ class MongoDBCollectionStatsTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"MongoDB instance '{instance_name}' not found",
                     params=params
                 )
@@ -215,7 +215,7 @@ class MongoDBCollectionStatsTool(Tool):
             stats_data = self.toolset.infrainsights_client.get_mongodb_collection_stats(instance, database_name, collection_name)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=stats_data,
                 params=params
             )
@@ -223,7 +223,7 @@ class MongoDBCollectionStatsTool(Tool):
         except Exception as e:
             logger.error(f"Error getting MongoDB collection stats: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to get MongoDB collection stats: {str(e)}",
                 params=params
             )
@@ -258,7 +258,7 @@ class MongoDBPerformanceMetricsTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -267,7 +267,7 @@ class MongoDBPerformanceMetricsTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -278,7 +278,7 @@ class MongoDBPerformanceMetricsTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"MongoDB instance '{instance_name}' not found",
                     params=params
                 )
@@ -286,7 +286,7 @@ class MongoDBPerformanceMetricsTool(Tool):
             metrics_data = self.toolset.infrainsights_client.get_mongodb_performance_metrics(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=metrics_data,
                 params=params
             )
@@ -294,7 +294,7 @@ class MongoDBPerformanceMetricsTool(Tool):
         except Exception as e:
             logger.error(f"Error getting MongoDB performance metrics: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to get MongoDB performance metrics: {str(e)}",
                 params=params
             )
@@ -340,7 +340,7 @@ class MongoDBSlowQueriesAnalysisTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -349,7 +349,7 @@ class MongoDBSlowQueriesAnalysisTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -360,7 +360,7 @@ class MongoDBSlowQueriesAnalysisTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"MongoDB instance '{instance_name}' not found",
                     params=params
                 )
@@ -368,7 +368,7 @@ class MongoDBSlowQueriesAnalysisTool(Tool):
             slow_queries_data = self.toolset.infrainsights_client.get_mongodb_slow_queries(instance, database_name, slow_threshold_ms)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=slow_queries_data,
                 params=params
             )
@@ -376,7 +376,7 @@ class MongoDBSlowQueriesAnalysisTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing MongoDB slow queries: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze MongoDB slow queries: {str(e)}",
                 params=params
             )
@@ -424,14 +424,14 @@ class MongoDBIndexAnalysisTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
                 
             if not database_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="database_name parameter is required",
                     params=params
                 )
@@ -440,7 +440,7 @@ class MongoDBIndexAnalysisTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -451,7 +451,7 @@ class MongoDBIndexAnalysisTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"MongoDB instance '{instance_name}' not found",
                     params=params
                 )
@@ -459,7 +459,7 @@ class MongoDBIndexAnalysisTool(Tool):
             index_data = self.toolset.infrainsights_client.get_mongodb_index_analysis(instance, database_name, collection_name)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=index_data,
                 params=params
             )
@@ -467,7 +467,7 @@ class MongoDBIndexAnalysisTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing MongoDB indexes: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze MongoDB indexes: {str(e)}",
                 params=params
             )
@@ -502,7 +502,7 @@ class MongoDBReplicaSetStatusTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -511,7 +511,7 @@ class MongoDBReplicaSetStatusTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -522,7 +522,7 @@ class MongoDBReplicaSetStatusTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"MongoDB instance '{instance_name}' not found",
                     params=params
                 )
@@ -530,7 +530,7 @@ class MongoDBReplicaSetStatusTool(Tool):
             replica_status_data = self.toolset.infrainsights_client.get_mongodb_replica_set_status(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=replica_status_data,
                 params=params
             )
@@ -538,7 +538,7 @@ class MongoDBReplicaSetStatusTool(Tool):
         except Exception as e:
             logger.error(f"Error checking MongoDB replica set status: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to check MongoDB replica set status: {str(e)}",
                 params=params
             )
@@ -571,7 +571,7 @@ class MongoDBConnectionAnalysisTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -580,7 +580,7 @@ class MongoDBConnectionAnalysisTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -591,7 +591,7 @@ class MongoDBConnectionAnalysisTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"MongoDB instance '{instance_name}' not found",
                     params=params
                 )
@@ -599,7 +599,7 @@ class MongoDBConnectionAnalysisTool(Tool):
             connection_data = self.toolset.infrainsights_client.get_mongodb_connection_analysis(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=connection_data,
                 params=params
             )
@@ -607,7 +607,7 @@ class MongoDBConnectionAnalysisTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing MongoDB connections: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze MongoDB connections: {str(e)}",
                 params=params
             )
@@ -647,7 +647,7 @@ class MongoDBOperationsAnalysisTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -656,7 +656,7 @@ class MongoDBOperationsAnalysisTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -667,7 +667,7 @@ class MongoDBOperationsAnalysisTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"MongoDB instance '{instance_name}' not found",
                     params=params
                 )
@@ -675,7 +675,7 @@ class MongoDBOperationsAnalysisTool(Tool):
             operations_data = self.toolset.infrainsights_client.get_mongodb_operations_analysis(instance, operation_threshold_ms)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=operations_data,
                 params=params
             )
@@ -683,7 +683,7 @@ class MongoDBOperationsAnalysisTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing MongoDB operations: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze MongoDB operations: {str(e)}",
                 params=params
             )
@@ -717,7 +717,7 @@ class MongoDBSecurityAuditTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -726,7 +726,7 @@ class MongoDBSecurityAuditTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -737,7 +737,7 @@ class MongoDBSecurityAuditTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"MongoDB instance '{instance_name}' not found",
                     params=params
                 )
@@ -745,7 +745,7 @@ class MongoDBSecurityAuditTool(Tool):
             security_data = self.toolset.infrainsights_client.get_mongodb_security_audit(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=security_data,
                 params=params
             )
@@ -753,7 +753,7 @@ class MongoDBSecurityAuditTool(Tool):
         except Exception as e:
             logger.error(f"Error performing MongoDB security audit: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to perform MongoDB security audit: {str(e)}",
                 params=params
             )
@@ -786,7 +786,7 @@ class MongoDBBackupAnalysisTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -795,7 +795,7 @@ class MongoDBBackupAnalysisTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -806,7 +806,7 @@ class MongoDBBackupAnalysisTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"MongoDB instance '{instance_name}' not found",
                     params=params
                 )
@@ -814,7 +814,7 @@ class MongoDBBackupAnalysisTool(Tool):
             backup_data = self.toolset.infrainsights_client.get_mongodb_backup_analysis(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=backup_data,
                 params=params
             )
@@ -822,7 +822,7 @@ class MongoDBBackupAnalysisTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing MongoDB backup status: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze MongoDB backup status: {str(e)}",
                 params=params
             )
@@ -862,7 +862,7 @@ class MongoDBCapacityPlanningTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -871,7 +871,7 @@ class MongoDBCapacityPlanningTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -882,7 +882,7 @@ class MongoDBCapacityPlanningTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"MongoDB instance '{instance_name}' not found",
                     params=params
                 )
@@ -890,7 +890,7 @@ class MongoDBCapacityPlanningTool(Tool):
             capacity_data = self.toolset.infrainsights_client.get_mongodb_capacity_planning(instance, projection_days)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=capacity_data,
                 params=params
             )
@@ -898,7 +898,7 @@ class MongoDBCapacityPlanningTool(Tool):
         except Exception as e:
             logger.error(f"Error analyzing MongoDB capacity planning: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to analyze MongoDB capacity planning: {str(e)}",
                 params=params
             )

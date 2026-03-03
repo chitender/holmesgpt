@@ -1,7 +1,7 @@
 import json
 import logging
 from typing import Dict, Any, Optional
-from holmes.core.tools import Tool, ToolResultStatus, StructuredToolResult, Toolset, ToolsetTag, CallablePrerequisite, ToolParameter
+from holmes.core.tools import Tool, StructuredToolResultStatus, StructuredToolResult, Toolset, ToolsetTag, CallablePrerequisite, ToolParameter
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class ElasticsearchHealthCheckTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -39,7 +39,7 @@ class ElasticsearchHealthCheckTool(Tool):
             # Get instance configuration from toolset
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -51,7 +51,7 @@ class ElasticsearchHealthCheckTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Elasticsearch/OpenSearch instance '{instance_name}' not found",
                     params=params
                 )
@@ -60,7 +60,7 @@ class ElasticsearchHealthCheckTool(Tool):
             health_data = self.toolset.infrainsights_client.get_elasticsearch_health(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=health_data,
                 params=params
             )
@@ -68,7 +68,7 @@ class ElasticsearchHealthCheckTool(Tool):
         except Exception as e:
             logger.error(f"Error checking Elasticsearch health: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to check Elasticsearch health: {str(e)}",
                 params=params
             )
@@ -101,7 +101,7 @@ class ElasticsearchListIndicesTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -111,7 +111,7 @@ class ElasticsearchListIndicesTool(Tool):
             # Get instance configuration from toolset
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -123,7 +123,7 @@ class ElasticsearchListIndicesTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Elasticsearch/OpenSearch instance '{instance_name}' not found",
                     params=params
                 )
@@ -132,7 +132,7 @@ class ElasticsearchListIndicesTool(Tool):
             indices_data = self.toolset.infrainsights_client.get_elasticsearch_indices(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=indices_data,
                 params=params
             )
@@ -140,7 +140,7 @@ class ElasticsearchListIndicesTool(Tool):
         except Exception as e:
             logger.error(f"Error listing Elasticsearch indices: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to list Elasticsearch indices: {str(e)}",
                 params=params
             )
@@ -173,7 +173,7 @@ class ElasticsearchClusterStatsTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -182,7 +182,7 @@ class ElasticsearchClusterStatsTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -193,7 +193,7 @@ class ElasticsearchClusterStatsTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Elasticsearch/OpenSearch instance '{instance_name}' not found",
                     params=params
                 )
@@ -201,7 +201,7 @@ class ElasticsearchClusterStatsTool(Tool):
             stats_data = self.toolset.infrainsights_client.get_elasticsearch_cluster_stats(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=stats_data,
                 params=params
             )
@@ -209,7 +209,7 @@ class ElasticsearchClusterStatsTool(Tool):
         except Exception as e:
             logger.error(f"Error getting cluster stats: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to get cluster stats: {str(e)}",
                 params=params
             )
@@ -242,7 +242,7 @@ class ElasticsearchNodeStatsTool(Tool):
             instance_name = params.get('instance_name')
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -251,7 +251,7 @@ class ElasticsearchNodeStatsTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -262,7 +262,7 @@ class ElasticsearchNodeStatsTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Elasticsearch/OpenSearch instance '{instance_name}' not found",
                     params=params
                 )
@@ -270,7 +270,7 @@ class ElasticsearchNodeStatsTool(Tool):
             stats_data = self.toolset.infrainsights_client.get_elasticsearch_node_stats(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=stats_data,
                 params=params
             )
@@ -278,7 +278,7 @@ class ElasticsearchNodeStatsTool(Tool):
         except Exception as e:
             logger.error(f"Error getting node stats: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to get node stats: {str(e)}",
                 params=params
             )
@@ -318,7 +318,7 @@ class ElasticsearchIndexStatsTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -327,7 +327,7 @@ class ElasticsearchIndexStatsTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -338,7 +338,7 @@ class ElasticsearchIndexStatsTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Elasticsearch/OpenSearch instance '{instance_name}' not found",
                     params=params
                 )
@@ -346,7 +346,7 @@ class ElasticsearchIndexStatsTool(Tool):
             stats_data = self.toolset.infrainsights_client.get_elasticsearch_index_stats(instance, index_name)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=stats_data,
                 params=params
             )
@@ -354,7 +354,7 @@ class ElasticsearchIndexStatsTool(Tool):
         except Exception as e:
             logger.error(f"Error getting index stats: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to get index stats: {str(e)}",
                 params=params
             )
@@ -395,7 +395,7 @@ class ElasticsearchShardAllocationTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -404,7 +404,7 @@ class ElasticsearchShardAllocationTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -415,7 +415,7 @@ class ElasticsearchShardAllocationTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Elasticsearch/OpenSearch instance '{instance_name}' not found",
                     params=params
                 )
@@ -423,7 +423,7 @@ class ElasticsearchShardAllocationTool(Tool):
             allocation_data = self.toolset.infrainsights_client.get_elasticsearch_shard_allocation(instance, index_name)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=allocation_data,
                 params=params
             )
@@ -431,7 +431,7 @@ class ElasticsearchShardAllocationTool(Tool):
         except Exception as e:
             logger.error(f"Error getting shard allocation: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to get shard allocation: {str(e)}",
                 params=params
             )
@@ -466,7 +466,7 @@ class ElasticsearchTasksTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -475,7 +475,7 @@ class ElasticsearchTasksTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -486,7 +486,7 @@ class ElasticsearchTasksTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Elasticsearch/OpenSearch instance '{instance_name}' not found",
                     params=params
                 )
@@ -494,7 +494,7 @@ class ElasticsearchTasksTool(Tool):
             tasks_data = self.toolset.infrainsights_client.get_elasticsearch_tasks(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=tasks_data,
                 params=params
             )
@@ -502,7 +502,7 @@ class ElasticsearchTasksTool(Tool):
         except Exception as e:
             logger.error(f"Error getting tasks: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to get tasks: {str(e)}",
                 params=params
             )
@@ -536,7 +536,7 @@ class ElasticsearchPendingTasksTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -545,7 +545,7 @@ class ElasticsearchPendingTasksTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -556,7 +556,7 @@ class ElasticsearchPendingTasksTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Elasticsearch/OpenSearch instance '{instance_name}' not found",
                     params=params
                 )
@@ -564,7 +564,7 @@ class ElasticsearchPendingTasksTool(Tool):
             pending_data = self.toolset.infrainsights_client.get_elasticsearch_pending_tasks(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=pending_data,
                 params=params
             )
@@ -572,7 +572,7 @@ class ElasticsearchPendingTasksTool(Tool):
         except Exception as e:
             logger.error(f"Error getting pending tasks: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to get pending tasks: {str(e)}",
                 params=params
             )
@@ -606,7 +606,7 @@ class ElasticsearchThreadPoolStatsTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -615,7 +615,7 @@ class ElasticsearchThreadPoolStatsTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -626,7 +626,7 @@ class ElasticsearchThreadPoolStatsTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Elasticsearch/OpenSearch instance '{instance_name}' not found",
                     params=params
                 )
@@ -634,7 +634,7 @@ class ElasticsearchThreadPoolStatsTool(Tool):
             stats_data = self.toolset.infrainsights_client.get_elasticsearch_thread_pool_stats(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=stats_data,
                 params=params
             )
@@ -642,7 +642,7 @@ class ElasticsearchThreadPoolStatsTool(Tool):
         except Exception as e:
             logger.error(f"Error getting thread pool stats: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to get thread pool stats: {str(e)}",
                 params=params
             )
@@ -682,14 +682,14 @@ class ElasticsearchIndexMappingTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
                 
             if not index_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="index_name parameter is required",
                     params=params
                 )
@@ -698,7 +698,7 @@ class ElasticsearchIndexMappingTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -709,7 +709,7 @@ class ElasticsearchIndexMappingTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Elasticsearch/OpenSearch instance '{instance_name}' not found",
                     params=params
                 )
@@ -717,7 +717,7 @@ class ElasticsearchIndexMappingTool(Tool):
             mapping_data = self.toolset.infrainsights_client.get_elasticsearch_index_mapping(instance, index_name)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=mapping_data,
                 params=params
             )
@@ -725,7 +725,7 @@ class ElasticsearchIndexMappingTool(Tool):
         except Exception as e:
             logger.error(f"Error getting index mapping: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to get index mapping: {str(e)}",
                 params=params
             )
@@ -766,14 +766,14 @@ class ElasticsearchIndexSettingsTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
                 
             if not index_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="index_name parameter is required",
                     params=params
                 )
@@ -782,7 +782,7 @@ class ElasticsearchIndexSettingsTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -793,7 +793,7 @@ class ElasticsearchIndexSettingsTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Elasticsearch/OpenSearch instance '{instance_name}' not found",
                     params=params
                 )
@@ -801,7 +801,7 @@ class ElasticsearchIndexSettingsTool(Tool):
             settings_data = self.toolset.infrainsights_client.get_elasticsearch_index_settings(instance, index_name)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=settings_data,
                 params=params
             )
@@ -809,7 +809,7 @@ class ElasticsearchIndexSettingsTool(Tool):
         except Exception as e:
             logger.error(f"Error getting index settings: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to get index settings: {str(e)}",
                 params=params
             )
@@ -850,7 +850,7 @@ class ElasticsearchHotThreadsTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -859,7 +859,7 @@ class ElasticsearchHotThreadsTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -870,7 +870,7 @@ class ElasticsearchHotThreadsTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Elasticsearch/OpenSearch instance '{instance_name}' not found",
                     params=params
                 )
@@ -878,7 +878,7 @@ class ElasticsearchHotThreadsTool(Tool):
             hot_threads_data = self.toolset.infrainsights_client.get_elasticsearch_hot_threads(instance, node_name)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=hot_threads_data,
                 params=params
             )
@@ -886,7 +886,7 @@ class ElasticsearchHotThreadsTool(Tool):
         except Exception as e:
             logger.error(f"Error getting hot threads: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to get hot threads: {str(e)}",
                 params=params
             )
@@ -921,7 +921,7 @@ class ElasticsearchSnapshotStatusTool(Tool):
             
             if not instance_name:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="instance_name parameter is required",
                     params=params
                 )
@@ -930,7 +930,7 @@ class ElasticsearchSnapshotStatusTool(Tool):
             
             if not self.toolset or not self.toolset.infrainsights_client:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error="InfraInsights client not available",
                     params=params
                 )
@@ -941,7 +941,7 @@ class ElasticsearchSnapshotStatusTool(Tool):
             
             if not instance:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=f"Elasticsearch/OpenSearch instance '{instance_name}' not found",
                     params=params
                 )
@@ -949,7 +949,7 @@ class ElasticsearchSnapshotStatusTool(Tool):
             snapshot_data = self.toolset.infrainsights_client.get_elasticsearch_snapshot_status(instance)
             
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=snapshot_data,
                 params=params
             )
@@ -957,7 +957,7 @@ class ElasticsearchSnapshotStatusTool(Tool):
         except Exception as e:
             logger.error(f"Error getting snapshot status: {e}", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to get snapshot status: {str(e)}",
                 params=params
             )

@@ -18,6 +18,8 @@ from holmes.utils.definitions import CUSTOM_TOOLSET_LOCATION
 if TYPE_CHECKING:
     pass
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_TOOLSET_STATUS_LOCATION = os.path.join(config_path_dir, "toolsets_status.json")
 
 # Mapping of deprecated toolset names to their new names
