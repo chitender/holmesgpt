@@ -45,6 +45,21 @@
 ** check the application logs because there may be runtime issues
 {% endif %}
 
+## 🎯 **Toolset Routing Guidelines**
+
+### **APM Traces and Observability Data:**
+When the user asks for **APM traces**, **trace analysis**, **distributed tracing**, or **observability traces**:
+- **ALWAYS use the Kfuse MCP server tools** (if available) for fetching traces
+- Look for tools with names like `kfuse_*`, `trace_*`, `apm_*`, or similar in the Kfuse toolset
+- After fetching traces from Kfuse, you can use other toolsets (Kubernetes, logs, etc.) to analyze and explain the trace data
+- **Example:** If user asks "Fetch the top 10 slowest APM traces for cluster X from kfuse", use Kfuse MCP server tools first, then analyze with Kubernetes/logs toolsets
+
+### **Tool Selection Priority:**
+1. **For APM traces/tracing**: Kfuse MCP server → then other toolsets for analysis
+2. **For Kubernetes resources**: InfraInsights Kubernetes toolsets or built-in Kubernetes tools
+3. **For logs**: Logging toolsets (Loki, Elasticsearch, etc.)
+4. **For metrics**: Prometheus or metrics toolsets
+
 {% if toolset_instructions_enabled %}
 {% include '_toolsets_instructions.jinja2' %}
 {% endif %}
