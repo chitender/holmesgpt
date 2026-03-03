@@ -481,6 +481,7 @@ class RemoteMCPToolset(Toolset):
                 return (False, f"Config is required for {self.name}")
 
             mode_value = config.get("mode", MCPMode.SSE.value)
+            logger.debug(f"🔍 MCP server '{self.name}' - Config mode value: {mode_value} (from config: {config.get('mode', 'NOT SET')})")
             allowed_modes = [e.value for e in MCPMode]
             if mode_value not in allowed_modes:
                 return (
