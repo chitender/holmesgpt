@@ -676,9 +676,12 @@ class Toolset(BaseModel):
         Overrides the current attributes with values from the Toolset loaded from custom config
         if they are not None.
         """
+        # Prerequisites are behavioral (contain callables) and must NOT be overridden
+        # from serialized data. model_dump() serializes CallablePrerequisite objects to
+        # plain dicts, which breaks isinstance checks in check_prerequisites().
         for field, value in override.model_dump(
             exclude_unset=True,
-            exclude=("name"),  # type: ignore
+            exclude=("name", "prerequisites"),  # type: ignore
         ).items():
             if field in self.__class__.model_fields and value not in (None, [], {}, ""):
                 setattr(self, field, value)
@@ -789,6 +792,16 @@ class Toolset(BaseModel):
         # 3. Callable checks (variable speed)
         # 4. Command checks (slowest - may timeout or hang)
         sorted_prereqs = sorted(self.prerequisites, key=_prereq_priority)
+
+        # Detect corrupted prerequisites (e.g., dicts instead of proper Pydantic models)
+        valid_types = (StaticPrerequisite, ToolsetCommandPrerequisite, ToolsetEnvironmentPrerequisite, CallablePrerequisite)
+        for prereq in sorted_prereqs:
+            if not isinstance(prereq, valid_types):
+                logger.warning(
+                    f"Toolset {self.name}: prerequisite corrupted - got {type(prereq).__name__} "
+                    f"instead of a valid prerequisite type. This may happen if override_with() "
+                    f"serialized prerequisites. Skipping this prerequisite."
+                )
 
         for prereq in sorted_prereqs:
             if isinstance(prereq, ToolsetCommandPrerequisite):
