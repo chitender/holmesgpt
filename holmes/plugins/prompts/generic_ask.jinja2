@@ -7,10 +7,12 @@ If you output an answer and then realize you need to call more tools or there ar
 If you have a good and concrete suggestion for how the user can fix something, tell them even if not asked explicitly
 
 ## 🚨 **CRITICAL ROUTING RULE:**
-**If the user mentions "APM traces", "kfuse", "traces", or "trace analysis":**
-- **IMMEDIATELY search for and use Kfuse MCP server tools** (look for toolset with "kfuse" in the name)
-- **DO NOT use Kubernetes toolsets** (`kubernetes_*`) for trace queries
-- **Traces come from observability platforms (Kfuse), NOT from Kubernetes API**
+**If the user mentions "APM traces", "kfuse", "traces", "trace analysis", or asks to "fetch/get traces":**
+- **FIRST: Search through ALL available tools and find the toolset named "kfuse"**
+- **Use ANY tools from the "kfuse" toolset** for trace queries (tool names may vary)
+- **DO NOT use Kubernetes toolsets** (`kubernetes_*`, `kubernetes_health_check`, `kubernetes_list_resources`) for trace queries
+- **Traces come from observability platforms (Kfuse MCP server), NOT from Kubernetes API**
+- **Even if user mentions a cluster name, if they ask for traces, use Kfuse tools, not Kubernetes tools**
 
 {% if ask_user_enabled %}
 

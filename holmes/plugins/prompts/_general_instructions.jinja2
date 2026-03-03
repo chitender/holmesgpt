@@ -50,22 +50,27 @@
 ### **🚨 APM Traces - MANDATORY ROUTING:**
 **When the user mentions ANY of these terms:**
 - "APM traces" or "APM trace"
-- "kfuse" (in any context)
+- "kfuse" (in any context - even if mentioned alongside cluster names)
 - "trace analysis" or "traces"
 - "distributed tracing"
 - "observability traces"
 - "slowest traces" or "top traces"
+- "fetch traces" or "get traces"
 
 **YOU MUST:**
-1. **IMMEDIATELY look for tools from the Kfuse MCP server toolset** (toolset name contains "kfuse")
-2. **DO NOT use Kubernetes toolsets** (`kubernetes_*`, `infrainsights_kubernetes_*`) for fetching traces
-3. **DO NOT use InfraInsights toolsets** for trace queries
-4. **ONLY use Kfuse MCP server tools** for trace-related queries
-5. After fetching traces from Kfuse, THEN you can use Kubernetes/logs toolsets to analyze the results
+1. **FIRST: Search through ALL available tools** and find tools from the toolset named "kfuse" (the MCP server toolset)
+2. **Look for ANY tool from the "kfuse" toolset** - the tool names might be anything (not necessarily starting with "kfuse_")
+3. **DO NOT use Kubernetes toolsets** (`kubernetes_*`, `infrainsights_kubernetes_*`) for fetching traces - these are for Kubernetes resources, NOT traces
+4. **DO NOT use InfraInsights toolsets** for trace queries
+5. **ONLY use tools from the "kfuse" MCP server toolset** for trace-related queries
+6. After fetching traces from Kfuse, THEN you can use Kubernetes/logs toolsets to analyze the results
 
 **Example User Query:** "Fetch the top 10 slowest APM traces for cluster dock-university-new from kfuse"
-**CORRECT Response:** Look for Kfuse MCP server tools (e.g., `kfuse_*`, `trace_*`, `apm_*`) and call them with cluster parameter
-**WRONG Response:** Calling `kubernetes_health_check` or `kubernetes_list_resources` - these are NOT for traces!
+**CORRECT Response:** 
+- Search for tools from toolset "kfuse" 
+- Call those tools with parameters like cluster="dock-university-new" or similar
+- DO NOT call `kubernetes_health_check` or `kubernetes_list_resources`
+**WRONG Response:** Calling `kubernetes_health_check` or `kubernetes_list_resources` - these are NOT for traces! Traces come from observability platforms (Kfuse), not from Kubernetes API.
 
 ### **Tool Selection Priority:**
 1. **For APM traces/tracing/kfuse queries**: **Kfuse MCP server ONLY** → then other toolsets for analysis
