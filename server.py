@@ -245,6 +245,18 @@ if ENABLE_TELEMETRY and SENTRY_DSN:
 
 app = FastAPI()
 
+
+@app.on_event("startup")
+async def startup_event():
+    """Log enabled toolsets and MCP servers at startup."""
+    try:
+        # Trigger toolset loading to get the summary logs
+        _ = config.create_tool_executor(dal=dal)
+        logging.info("✅ Toolset initialization complete")
+    except Exception as e:
+        logging.warning(f"⚠️ Toolset initialization had issues: {e}", exc_info=True)
+
+
 if LOG_PERFORMANCE:
 
     @app.middleware("http")
