@@ -275,6 +275,15 @@ app = FastAPI()
 async def startup_event():
     """Log enabled toolsets and MCP servers at startup."""
     try:
+        # Log MCP servers from config if available
+        if config.mcp_servers:
+            logging.info(f"🔌 Found {len(config.mcp_servers)} MCP server(s) in config: {list(config.mcp_servers.keys())}")
+            for name, mcp_config in config.mcp_servers.items():
+                url = mcp_config.get('config', {}).get('url', mcp_config.get('url', 'N/A'))
+                mode = mcp_config.get('config', {}).get('mode', mcp_config.get('mode', 'sse'))
+                enabled = mcp_config.get('enabled', True)
+                logging.info(f"🔌 MCP server '{name}': url={url}, mode={mode}, enabled={enabled}")
+        
         # Trigger toolset loading to get the summary logs
         _ = config.create_tool_executor(dal=dal)
         logging.info("✅ Toolset initialization complete")
