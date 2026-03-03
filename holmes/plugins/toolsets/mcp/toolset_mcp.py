@@ -484,8 +484,8 @@ class RemoteMCPToolset(Toolset):
             # If config has a nested "config" key, use that; otherwise use the top-level config
             mcp_config_dict = config.get("config", config) if isinstance(config, dict) else config
             
-            mode_value = mcp_config_dict.get("mode", MCPMode.SSE.value)
-            logger.debug(f"🔍 MCP server '{self.name}' - Config mode value: {mode_value} (from config: {mcp_config_dict.get('mode', 'NOT SET')})")
+            mode_value = mcp_config_dict.get("mode", MCPMode.SSE.value) if isinstance(mcp_config_dict, dict) else MCPMode.SSE.value
+            logger.info(f"🔍 MCP server '{self.name}' - Extracted config mode: {mode_value} (from {'nested config' if config.get('config') else 'top-level config'})")
             logger.debug(f"🔍 MCP server '{self.name}' - Full config dict keys: {list(mcp_config_dict.keys()) if isinstance(mcp_config_dict, dict) else 'N/A'}")
             allowed_modes = [e.value for e in MCPMode]
             if mode_value not in allowed_modes:

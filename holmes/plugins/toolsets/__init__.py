@@ -215,7 +215,10 @@ def load_toolsets_from_config(
             validated_toolset: Optional[Toolset] = None
             # MCP server is not a built-in toolset, so we need to set the type explicitly
             if toolset_type == ToolsetType.MCP.value:
-                logging.info(f"🔌 Loading MCP server '{name}' (mode: {config.get('mode', 'sse')}, enabled: {config.get('enabled', True)})")
+                # Extract nested config if present (for YAML structure: mcp_servers.kfuse.config)
+                mcp_config_dict = config.get("config", config) if isinstance(config, dict) else config
+                mode_value = mcp_config_dict.get("mode", "sse") if isinstance(mcp_config_dict, dict) else "sse"
+                logging.info(f"🔌 Loading MCP server '{name}' (mode: {mode_value}, enabled: {config.get('enabled', True)})")
                 validated_toolset = RemoteMCPToolset(**config, name=name)
                 logging.debug(f"✅ MCP server '{name}' created successfully")
             elif toolset_type == ToolsetType.HTTP.value:
