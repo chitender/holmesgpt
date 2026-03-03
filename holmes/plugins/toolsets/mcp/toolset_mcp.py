@@ -493,11 +493,19 @@ class RemoteMCPToolset(Toolset):
             else:
                 self._mcp_config = MCPConfig(**config)
                 clean_url_str = str(self._mcp_config.url).rstrip("/")
+                
+                logger.debug(f"🔍 MCP server '{self.name}' - Config: mode={self._mcp_config.mode}, original_url={self._mcp_config.url}")
 
                 if self._mcp_config.mode == MCPMode.SSE and not clean_url_str.endswith(
                     "/sse"
                 ):
                     self._mcp_config.url = AnyUrl(clean_url_str + "/sse")
+                    logger.debug(f"🔍 MCP server '{self.name}' - SSE mode: Updated URL to {self._mcp_config.url}")
+                elif self._mcp_config.mode == MCPMode.STREAMABLE_HTTP:
+                    # For streamable-http, ensure URL ends with /mcp or /messages if not already specified
+                    if not clean_url_str.endswith(("/mcp", "/messages", "/sse")):
+                        # Don't auto-append - let the server URL be as configured
+                        logger.debug(f"🔍 MCP server '{self.name}' - Streamable HTTP mode: Using URL as-is: {self._mcp_config.url}")
 
             tools_result = asyncio.run(self._get_server_tools())
 
@@ -507,6 +515,10 @@ class RemoteMCPToolset(Toolset):
 
             if not self.tools:
                 logging.warning(f"⚠️ MCP server '{self.name}' loaded 0 tools.")
+                logging.warning(f"⚠️ MCP server '{self.name}' - Check if the server is running and accessible at {self._mcp_config.url if self._mcp_config else 'N/A'}")
+                logging.warning(f"⚠️ MCP server '{self.name}' - Verify the server exposes tools via MCP protocol")
+                # Still return True - allow toolset to be enabled even with 0 tools
+                # The toolset might be starting up or tools might be added later
             else:
                 logging.info(f"✅ MCP server '{self.name}' loaded {len(self.tools)} tool(s): {[tool.name for tool in self.tools[:5]]}{'...' if len(self.tools) > 5 else ''}")
 
@@ -520,5 +532,21 @@ class RemoteMCPToolset(Toolset):
             )
 
     async def _get_server_tools(self):
-        async with get_initialized_mcp_session(self, None) as session:
-            return await session.list_tools()
+        try:
+            logger.debug(f"🔍 MCP server '{self.name}' - Attempting to connect and fetch tools...")
+            async with get_initialized_mcp_session(self, None) as session:
+                logger.debug(f"🔍 MCP server '{self.name}' - Session initialized, calling list_tools()...")
+                tools_result = await session.list_tools()
+                logger.info(f"🔍 MCP server '{self.name}' - list_tools() returned {len(tools_result.tools) if tools_result and hasattr(tools_result, 'tools') else 0} tool(s)")
+                if tools_result and hasattr(tools_result, 'tools'):
+                    if tools_result.tools:
+                        logger.debug(f"🔍 MCP server '{self.name}' - Tool names: {[tool.name for tool in tools_result.tools[:10]]}")
+                    else:
+                        logger.warning(f"⚠️ MCP server '{self.name}' - list_tools() returned empty tools list. The server may not be exposing any tools via MCP protocol.")
+                return tools_result
+        except Exception as e:
+            error_detail = _extract_root_error_message(e)
+            logger.error(f"❌ MCP server '{self.name}' - Failed to fetch tools: {error_detail}", exc_info=True)
+            # Return empty tools result instead of raising
+            from mcp.types import ListToolsResult
+            return ListToolsResult(tools=[])
