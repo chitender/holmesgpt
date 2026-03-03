@@ -506,7 +506,9 @@ class RemoteMCPToolset(Toolset):
             ]
 
             if not self.tools:
-                logging.warning(f"mcp server {self.name} loaded 0 tools.")
+                logging.warning(f"⚠️ MCP server '{self.name}' loaded 0 tools.")
+            else:
+                logging.info(f"✅ MCP server '{self.name}' loaded {len(self.tools)} tool(s): {[tool.name for tool in self.tools[:5]]}{'...' if len(self.tools) > 5 else ''}")
 
             return (True, "")
         except Exception as e:

@@ -12,6 +12,7 @@ from .enhanced_redis_toolset import EnhancedRedisToolset
 from .comprehensive_kafka_toolset import ComprehensiveKafkaToolset
 from .comprehensive_kafka_connect_toolset import InfraInsightsKafkaConnectToolset
 from .kfuse_tempo_toolset import KfuseTempoToolset
+from .comprehensive_kubernetes_toolset import InfraInsightsKubernetesToolset
 
 # List of available toolsets - used by the loader
 AVAILABLE_TOOLSETS = {
@@ -21,6 +22,7 @@ AVAILABLE_TOOLSETS = {
     'comprehensive_kafka': ComprehensiveKafkaToolset,
     'comprehensive_kafka_connect': InfraInsightsKafkaConnectToolset,
     'kfuse_tempo': KfuseTempoToolset,
+    'infrainsights_kubernetes': InfraInsightsKubernetesToolset,
 }
 
 def get_infrainsights_toolsets(config: Dict[str, Any] = None) -> List[Toolset]:
@@ -123,6 +125,25 @@ def get_infrainsights_toolsets(config: Dict[str, Any] = None) -> List[Toolset]:
                 logger.info("✅ Kfuse Tempo toolset loaded")
             except Exception as e:
                 logger.error(f"❌ Failed to load Kfuse Tempo toolset: {e}")
+    
+    # InfraInsights Kubernetes toolset - support multiple config key variations
+    kubernetes_configs = [
+        config.get('kubernetes', {}),
+        config.get('infrainsights_kubernetes', {}),
+        config.get('comprehensive_kubernetes', {}),
+        config.get('comprehensive_infrainsight_kubernetes_toolset', {})
+    ]
+    
+    for kubernetes_config in kubernetes_configs:
+        if kubernetes_config.get('enabled', False):
+            try:
+                kubernetes_toolset = InfraInsightsKubernetesToolset()
+                kubernetes_toolset.configure(kubernetes_config)
+                toolsets.append(kubernetes_toolset)
+                logger.info("✅ InfraInsights Kubernetes toolset loaded")
+                break  # Only load one instance of Kubernetes toolset
+            except Exception as e:
+                logger.error(f"❌ Failed to load InfraInsights Kubernetes toolset: {e}")
 
     
     return toolsets 

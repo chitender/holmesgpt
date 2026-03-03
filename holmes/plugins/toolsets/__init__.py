@@ -195,6 +195,11 @@ def load_toolsets_from_config(
     for name, config in toolsets.items():
         try:
             toolset_type = config.get("type", ToolsetType.BUILTIN.value)
+            
+            # Normalize type enum values (handle 'builtin' -> 'built-in')
+            if toolset_type == "builtin":
+                toolset_type = ToolsetType.BUILTIN.value
+                config["type"] = toolset_type
 
             # Resolve env var placeholders before creating the Toolset.
             # If done after, .override_with() will overwrite resolved values with placeholders
@@ -202,10 +207,17 @@ def load_toolsets_from_config(
             if config:
                 config = env_utils.replace_env_vars_values(config)
 
+            # Add default description for custom toolsets if missing and strict_check is True
+            if strict_check and toolset_type not in [ToolsetType.MCP.value, ToolsetType.HTTP.value, ToolsetType.DATABASE.value]:
+                if "description" not in config:
+                    config["description"] = f"Custom toolset: {name}"
+
             validated_toolset: Optional[Toolset] = None
             # MCP server is not a built-in toolset, so we need to set the type explicitly
             if toolset_type == ToolsetType.MCP.value:
+                logging.info(f"🔌 Loading MCP server '{name}' (mode: {config.get('mode', 'sse')}, enabled: {config.get('enabled', True)})")
                 validated_toolset = RemoteMCPToolset(**config, name=name)
+                logging.debug(f"✅ MCP server '{name}' created successfully")
             elif toolset_type == ToolsetType.HTTP.value:
                 validated_toolset = HttpToolset(name=name, **config)
             elif toolset_type == ToolsetType.DATABASE.value:

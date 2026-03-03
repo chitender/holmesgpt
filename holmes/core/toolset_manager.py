@@ -65,8 +65,10 @@ class ToolsetManager:
         self.additional_toolsets = additional_toolsets or []
         self.custom_runbook_catalogs = custom_runbook_catalogs
         if mcp_servers is not None:
-            for _, mcp_server in mcp_servers.items():
+            logging.info(f"🔌 Found {len(mcp_servers)} MCP server(s) in config: {list(mcp_servers.keys())}")
+            for name, mcp_server in mcp_servers.items():
                 mcp_server["type"] = ToolsetType.MCP.value
+                logging.debug(f"🔌 Configuring MCP server '{name}': {mcp_server.get('url', mcp_server.get('command', 'N/A'))}")
         self.toolsets.update(mcp_servers or {})
         self.custom_toolsets = custom_toolsets
         self.global_fast_model = global_fast_model
@@ -152,6 +154,18 @@ class ToolsetManager:
             custom_toolsets,
             toolsets_by_name,
         )
+
+        # Load InfraInsights toolsets from config if available
+        if self.toolsets is not None:
+            try:
+                from holmes.plugins.toolsets.infrainsights import get_infrainsights_toolsets
+                infrainsights_toolsets = get_infrainsights_toolsets(self.toolsets)
+                for toolset in infrainsights_toolsets:
+                    toolset.type = ToolsetType.CUSTOMIZED
+                    toolsets_by_name[toolset.name] = toolset
+                    logger.info(f"✅ Loaded InfraInsights toolset: {toolset.name}")
+            except Exception as e:
+                logger.warning(f"Failed to load InfraInsights toolsets: {e}", exc_info=True)
 
         # Add additional Python toolsets passed programmatically
         if self.additional_toolsets:
@@ -246,6 +260,11 @@ class ToolsetManager:
         custom_toolsets = load_toolsets_from_config(
             toolsets=custom_toolsets_dict, strict_check=True
         )
+        
+        # Log MCP servers that were loaded
+        mcp_toolsets = [ts for ts in custom_toolsets if ts.type == ToolsetType.MCP]
+        if mcp_toolsets:
+            logging.info(f"🔌 Successfully loaded {len(mcp_toolsets)} MCP server toolset(s): {[ts.name for ts in mcp_toolsets]}")
 
         return builtin_toolsets + custom_toolsets
 
