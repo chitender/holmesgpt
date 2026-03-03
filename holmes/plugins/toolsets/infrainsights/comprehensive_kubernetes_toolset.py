@@ -177,7 +177,7 @@ class KubernetesHealthCheckTool(Tool):
         )
         self.toolset = toolset
 
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         """Check Kubernetes cluster health"""
         try:
             instance_name = params.get("instance_name")
@@ -403,7 +403,7 @@ class KubernetesListResourcesTool(Tool):
         )
         self.toolset = toolset
 
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         """List Kubernetes resources"""
         try:
             instance_name = params.get("instance_name")
@@ -640,7 +640,7 @@ class KubernetesDescribeResourceTool(Tool):
         )
         self.toolset = toolset
 
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         """Describe Kubernetes resource"""
         try:
             instance_name = params.get("instance_name")
@@ -966,7 +966,7 @@ class KubernetesLogsTool(Tool):
         )
         self.toolset = toolset
 
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         """Fetch Kubernetes pod logs"""
         try:
             instance_name = params.get("instance_name")
@@ -1422,7 +1422,7 @@ class KubernetesEventsTool(Tool):
         )
         self.toolset = toolset
 
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         """Fetch Kubernetes events"""
         try:
             instance_name = params.get("instance_name")
@@ -1717,7 +1717,7 @@ class KubernetesLogsSearchTool(Tool):
         )
         self.toolset = toolset
 
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         """Search Kubernetes pod logs"""
         try:
             instance_name = params.get("instance_name")
@@ -1962,7 +1962,7 @@ class KubernetesMetricsTool(Tool):
         )
         self.toolset = toolset
 
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         """Fetch Kubernetes resource metrics"""
         try:
             instance_name = params.get("instance_name")
@@ -2181,7 +2181,7 @@ class KubernetesTroubleshootingTool(Tool):
         )
         self.toolset = toolset
 
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         """Perform specific type of troubleshooting"""
         try:
             instance_name = params.get("instance_name")
@@ -2498,7 +2498,7 @@ class KubernetesResourceAnalysisTool(Tool):
         )
         self.toolset = toolset
 
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         """Perform specific type of analysis"""
         try:
             instance_name = params.get("instance_name")
