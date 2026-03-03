@@ -43,14 +43,36 @@ def get_infrainsights_toolsets(config: Dict[str, Any] = None) -> List[Toolset]:
         """Get toolset config, checking multiple key variations"""
         for key in toolset_name_variations:
             toolset_entry = config.get(key, {})
-            if toolset_entry and toolset_entry.get('enabled', False):
+            if toolset_entry and isinstance(toolset_entry, dict):
+                # Skip custom toolset entries (they have 'type': 'custom' but no InfraInsights config)
+                # Only skip if it's a custom toolset AND doesn't have a nested 'config' key with InfraInsights settings
+                if toolset_entry.get('type') == 'custom':
+                    # Check if it has a nested config with InfraInsights settings
+                    nested_config = toolset_entry.get('config', {})
+                    if isinstance(nested_config, dict) and 'infrainsights_url' in nested_config:
+                        # This custom toolset has InfraInsights config nested inside - use it
+                        logger.debug(f"🔍 Found custom toolset '{key}' with nested InfraInsights config")
+                    elif 'infrainsights_url' not in toolset_entry:
+                        # This is a pure custom toolset, not an InfraInsights toolset
+                        logger.debug(f"🔍 Skipping custom toolset entry '{key}' (not an InfraInsights toolset)")
+                        continue
+                
+                # Check if enabled (default to True if not specified)
+                if not toolset_entry.get('enabled', True):
+                    continue
+                
                 # If entry has a 'config' key, use that; otherwise use the whole entry
                 # This handles both: { "config": {...} } and { "infrainsights_url": ... }
                 if 'config' in toolset_entry and isinstance(toolset_entry['config'], dict):
+                    logger.debug(f"🔍 Found InfraInsights toolset '{key}' with nested config")
                     return toolset_entry['config']
-                else:
-                    # Return the full entry (for flat structure)
+                elif 'infrainsights_url' in toolset_entry:
+                    # Flat structure with InfraInsights config
+                    logger.debug(f"🔍 Found InfraInsights toolset '{key}' with flat config")
                     return toolset_entry
+                else:
+                    # Entry exists but doesn't look like InfraInsights config
+                    logger.debug(f"🔍 Entry '{key}' exists but doesn't contain InfraInsights config")
         return None
     
     # Enhanced Elasticsearch toolset - check multiple key variations
@@ -81,9 +103,9 @@ def get_infrainsights_toolsets(config: Dict[str, Any] = None) -> List[Toolset]:
                 logger.error(f"❌ Failed to load Enhanced Elasticsearch toolset: {e}")
     
     # Enhanced MongoDB toolset - check multiple key variations
+    # Note: 'mongodb' might be a custom toolset, so prioritize InfraInsights-specific keys
     mongodb_configs = [
-        get_toolset_config(['mongodb', 'infrainsights_mongodb', 'infrainsights_mongodb_enhanced']),
-        config.get('mongodb', {})
+        get_toolset_config(['infrainsights_mongodb_enhanced', 'infrainsights_mongodb', 'mongodb']),
     ]
     
     for mongo_config in mongodb_configs:
@@ -110,11 +132,9 @@ def get_infrainsights_toolsets(config: Dict[str, Any] = None) -> List[Toolset]:
                 logger.error(f"❌ Failed to load Enhanced MongoDB toolset: {e}")
     
     # Enhanced Redis toolset - support multiple config key variations
+    # Note: 'redis' might be a custom toolset, so prioritize InfraInsights-specific keys
     redis_configs = [
-        get_toolset_config(['redis', 'infrainsights_redis', 'infrainsights_redis_enhanced']),
-        config.get('redis', {}),
-        config.get('infrainsights_redis', {}),
-        config.get('infrainsights_redis_enhanced', {})
+        get_toolset_config(['infrainsights_redis_enhanced', 'infrainsights_redis', 'redis']),
     ]
     
     for redis_config in redis_configs:
