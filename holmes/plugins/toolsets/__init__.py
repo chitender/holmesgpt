@@ -3,16 +3,25 @@ import os
 import os.path
 from typing import Any, List, Optional, Union
 
-from holmes.common.env_vars import USE_LEGACY_KUBERNETES_LOGS
 import yaml  # type: ignore
 from pydantic import ValidationError
 
-from holmes.plugins.toolsets.azure_sql.azure_sql_toolset import AzureSQLToolset
 import holmes.utils.env as env_utils
+from holmes.common.env_vars import (
+    DISABLE_PROMETHEUS_TOOLSET,
+    USE_LEGACY_KUBERNETES_LOGS,
+)
 from holmes.core.supabase_dal import SupabaseDal
 from holmes.core.tools import Toolset, ToolsetType, ToolsetYamlFromConfig, YAMLToolset
-from holmes.plugins.toolsets.coralogix.toolset_coralogix_logs import (
-    CoralogixLogsToolset,
+from holmes.plugins.toolsets.atlas_mongodb.mongodb_atlas import MongoDBAtlasToolset
+from holmes.plugins.toolsets.confluence.confluence import ConfluenceToolset
+from holmes.plugins.toolsets.azure_sql.azure_sql_toolset import AzureSQLToolset
+from holmes.plugins.toolsets.bash.bash_toolset import BashExecutorToolset
+from holmes.plugins.toolsets.connectivity_check import ConnectivityCheckToolset
+from holmes.plugins.toolsets.coralogix.toolset_coralogix import CoralogixToolset
+from holmes.plugins.toolsets.database.database import DatabaseToolset
+from holmes.plugins.toolsets.datadog.toolset_datadog_general import (
+    DatadogGeneralToolset,
 )
 from holmes.plugins.toolsets.datadog.toolset_datadog_logs import DatadogLogsToolset
 from holmes.plugins.toolsets.datadog.toolset_datadog_metrics import (
@@ -21,35 +30,33 @@ from holmes.plugins.toolsets.datadog.toolset_datadog_metrics import (
 from holmes.plugins.toolsets.datadog.toolset_datadog_traces import (
     DatadogTracesToolset,
 )
-from holmes.plugins.toolsets.kubernetes_logs import KubernetesLogsToolset
-from holmes.plugins.toolsets.git import GitToolset
+from holmes.plugins.toolsets.elasticsearch.elasticsearch import (
+    ElasticsearchClusterToolset,
+    ElasticsearchDataToolset,
+)
+from holmes.plugins.toolsets.elasticsearch.opensearch_query_assist import (
+    OpenSearchQueryAssistToolset,
+)
+from holmes.plugins.toolsets.grafana.loki.toolset_grafana_loki import GrafanaLokiToolset
 from holmes.plugins.toolsets.grafana.toolset_grafana import GrafanaToolset
-from holmes.plugins.toolsets.bash.bash_toolset import BashExecutorToolset
-from holmes.plugins.toolsets.grafana.toolset_grafana_loki import GrafanaLokiToolset
 from holmes.plugins.toolsets.grafana.toolset_grafana_tempo import GrafanaTempoToolset
+from holmes.plugins.toolsets.http.http_toolset import HttpToolset
 from holmes.plugins.toolsets.internet.internet import InternetToolset
 from holmes.plugins.toolsets.internet.notion import NotionToolset
+from holmes.plugins.toolsets.investigator.core_investigation import (
+    CoreInvestigationToolset,
+)
 from holmes.plugins.toolsets.kafka import KafkaToolset
+from holmes.plugins.toolsets.kubectl_run.kubectl_run_toolset import KubectlRunToolset
+from holmes.plugins.toolsets.kubernetes_logs import KubernetesLogsToolset
 from holmes.plugins.toolsets.mcp.toolset_mcp import RemoteMCPToolset
-from holmes.plugins.toolsets.newrelic import NewRelicToolset
-from holmes.plugins.toolsets.opensearch.opensearch import OpenSearchToolset
-from holmes.plugins.toolsets.opensearch.opensearch_logs import OpenSearchLogsToolset
-from holmes.plugins.toolsets.opensearch.opensearch_traces import OpenSearchTracesToolset
-from holmes.plugins.toolsets.prometheus.prometheus import PrometheusToolset
+from holmes.plugins.toolsets.newrelic.newrelic import NewRelicToolset
 from holmes.plugins.toolsets.rabbitmq.toolset_rabbitmq import RabbitMQToolset
 from holmes.plugins.toolsets.robusta.robusta import RobustaToolset
-from holmes.plugins.toolsets.atlas_mongodb.mongodb_atlas import MongoDBAtlasToolset
 from holmes.plugins.toolsets.runbook.runbook_fetcher import RunbookToolset
-from holmes.plugins.toolsets.servicenow.servicenow import ServiceNowToolset
-
-# Enhanced InfraInsights toolsets
-from holmes.plugins.toolsets.infrainsights.enhanced_elasticsearch_toolset import EnhancedElasticsearchToolset
-from holmes.plugins.toolsets.infrainsights.comprehensive_kafka_toolset import ComprehensiveKafkaToolset
-from holmes.plugins.toolsets.infrainsights.comprehensive_kafka_connect_toolset import InfraInsightsKafkaConnectToolset
-from holmes.plugins.toolsets.infrainsights.enhanced_mongodb_toolset import EnhancedMongoDBToolset
-from holmes.plugins.toolsets.infrainsights.enhanced_redis_toolset import EnhancedRedisToolset
-from holmes.plugins.toolsets.infrainsights.comprehensive_kubernetes_toolset import InfraInsightsKubernetesToolset
-from holmes.plugins.toolsets.infrainsights.kfuse_tempo_toolset import KfuseTempoToolset
+from holmes.plugins.toolsets.servicenow_tables.servicenow_tables import (
+    ServiceNowTablesToolset,
+)
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -65,18 +72,29 @@ def load_toolsets_from_file(
                 f"Failed to load toolsets from {toolsets_path}: file is empty or invalid YAML."
             )
         toolsets_dict = parsed_yaml.get("toolsets", {})
+        mcp_config = parsed_yaml.get("mcp_servers", {})
+
+        for server_config in mcp_config.values():
+            server_config["type"] = ToolsetType.MCP.value
+            server_config.setdefault("enabled", True)
+
+        toolsets_dict.update(mcp_config)
 
         toolsets.extend(load_toolsets_from_config(toolsets_dict, strict_check))
 
     return toolsets
 
 
-def load_python_toolsets(dal: Optional[SupabaseDal]) -> List[Toolset]:
+def load_python_toolsets(
+    dal: Optional[SupabaseDal],
+    additional_search_paths: Optional[List[str]] = None,
+) -> List[Toolset]:
     logging.debug("loading python toolsets")
     toolsets: list[Toolset] = [
+        CoreInvestigationToolset(),  # Load first for higher priority
         InternetToolset(),
+        ConnectivityCheckToolset(),
         RobustaToolset(dal),
-        OpenSearchToolset(),
         GrafanaLokiToolset(),
         GrafanaTempoToolset(),
         NewRelicToolset(),
@@ -84,27 +102,39 @@ def load_python_toolsets(dal: Optional[SupabaseDal]) -> List[Toolset]:
         NotionToolset(),
         KafkaToolset(),
         DatadogLogsToolset(),
+        DatadogGeneralToolset(),
         DatadogMetricsToolset(),
         DatadogTracesToolset(),
-        PrometheusToolset(),
-        OpenSearchLogsToolset(),
-        OpenSearchTracesToolset(),
-        CoralogixLogsToolset(),
+        OpenSearchQueryAssistToolset(),
+        CoralogixToolset(),
         RabbitMQToolset(),
-        GitToolset(),
         BashExecutorToolset(),
+        KubectlRunToolset(),
+        ConfluenceToolset(),
         MongoDBAtlasToolset(),
-        RunbookToolset(),
+        RunbookToolset(dal=dal, additional_search_paths=additional_search_paths),
         AzureSQLToolset(),
-        ServiceNowToolset(),
+        ServiceNowTablesToolset(),
+        DatabaseToolset(),
+        ElasticsearchDataToolset(),
+        ElasticsearchClusterToolset(),
     ]
+
+    if not DISABLE_PROMETHEUS_TOOLSET:
+        from holmes.plugins.toolsets.prometheus.prometheus import PrometheusToolset
+
+        toolsets.append(PrometheusToolset())
+
     if not USE_LEGACY_KUBERNETES_LOGS:
         toolsets.append(KubernetesLogsToolset())
 
     return toolsets
 
 
-def load_builtin_toolsets(dal: Optional[SupabaseDal] = None) -> List[Toolset]:
+def load_builtin_toolsets(
+    dal: Optional[SupabaseDal] = None,
+    additional_search_paths: Optional[List[str]] = None,
+) -> List[Toolset]:
     all_toolsets: List[Toolset] = []
     logging.debug(f"loading toolsets from {THIS_DIR}")
 
@@ -120,7 +150,9 @@ def load_builtin_toolsets(dal: Optional[SupabaseDal] = None) -> List[Toolset]:
         toolsets_from_file = load_toolsets_from_file(path, strict_check=True)
         all_toolsets.extend(toolsets_from_file)
 
-    all_toolsets.extend(load_python_toolsets(dal=dal))  # type: ignore
+    all_toolsets.extend(
+        load_python_toolsets(dal=dal, additional_search_paths=additional_search_paths)
+    )  # type: ignore
 
     # disable built-in toolsets by default, and the user can enable them explicitly in config.
     for toolset in all_toolsets:
@@ -150,155 +182,34 @@ def load_toolsets_from_config(
     :param strict_check: If True, all required fields for a toolset must be present.
     :return: List of validated Toolset objects.
     """
-    
-    logging.info("🚀🚀🚀 LOADING TOOLSETS FROM CONFIG - ENHANCED VERSION 🚀🚀🚀")
-    if isinstance(toolsets, dict):
-        logging.info(f"📝 Received toolsets config: {list(toolsets.keys())}")
-    else:
-        logging.info("📝 Received toolsets config in legacy list format")
 
     if not toolsets:
         return []
 
     loaded_toolsets: list[Toolset] = []
     if is_old_toolset_config(toolsets):
-        message = "Old toolset config format detected, please update to the new format: https://docs.robusta.dev/master/configuration/holmesgpt/custom_toolsets.html"
+        message = "Old toolset config format detected, please update to the new format: https://holmesgpt.dev/data-sources/custom-toolsets/"
         logging.warning(message)
         raise ValueError(message)
 
     for name, config in toolsets.items():
-        logging.info(f"🔧🔧🔧 PROCESSING TOOLSET: {name} 🔧🔧🔧")
         try:
             toolset_type = config.get("type", ToolsetType.BUILTIN.value)
-            # MCP server is not a built-in toolset, so we need to set the type explicitly
+
+            # Resolve env var placeholders before creating the Toolset.
+            # If done after, .override_with() will overwrite resolved values with placeholders
+            # because model_dump() returns the original, unprocessed config from YAML.
+            if config:
+                config = env_utils.replace_env_vars_values(config)
+
             validated_toolset: Optional[Toolset] = None
-            
-            # Enhanced InfraInsights toolsets (support both naming conventions)
-            if name == "infrainsights_elasticsearch_enhanced" or name == "infrainsights_elasticsearch_v2":
-                logging.info(f"🔧 Loading enhanced Elasticsearch toolset: {name}")
-                logging.info(f"🔧 Config received: {config}")
-                validated_toolset = EnhancedElasticsearchToolset()
-                validated_toolset.config = config.get("config")
-                logging.info(f"🔧 Extracted config: {validated_toolset.config}")
-                # Call configure method to initialize InfraInsights client with config
-                if validated_toolset.config:
-                    logging.info(f"🔧 Calling configure method with config: {validated_toolset.config}")
-                    validated_toolset.configure(validated_toolset.config)
-                else:
-                    logging.warning(f"🔧 No config found for {name}, using defaults")
-            elif name == "infrainsights_kafka_enhanced" or name == "infrainsights_kafka_v2" or name == "infrainsights_kafka_comprehensive":
-                logging.info(f"🔧 Loading comprehensive Kafka toolset: {name}")
-                validated_toolset = ComprehensiveKafkaToolset()
-                validated_toolset.config = config.get("config")
-                # Call configure method to initialize InfraInsights client with config
-                if validated_toolset.config:
-                    validated_toolset.configure(validated_toolset.config)
-            elif name == "infrainsights_mongodb_enhanced" or name == "infrainsights_mongodb_v2":
-                logging.info(f"🔧 Loading enhanced MongoDB toolset: {name}")
-                logging.info(f"🔧 Config received: {config}")
-                validated_toolset = EnhancedMongoDBToolset()
-                validated_toolset.config = config.get("config")
-                logging.info(f"🔧 Extracted config: {validated_toolset.config}")
-                # Call configure method to initialize InfraInsights client with config
-                if validated_toolset.config:
-                    logging.info(f"🔧 Calling configure method with config: {validated_toolset.config}")
-                    validated_toolset.configure(validated_toolset.config)
-                else:
-                    logging.warning(f"🔧 No config found for {name}, using defaults")
-            elif name == "infrainsights_redis_enhanced" or name == "infrainsights_redis":
-                logging.info(f"🔧 Loading enhanced Redis toolset: {name}")
-                logging.info(f"🔧 Config received: {config}")
-                validated_toolset = EnhancedRedisToolset()
-                validated_toolset.config = config.get("config")
-                logging.info(f"🔧 Extracted config: {validated_toolset.config}")
-                
-                # Safety check: Verify all tools are proper Tool objects
-                logging.info(f"🔧 SAFETY CHECK: Verifying {len(validated_toolset.tools)} Redis tools")
-                for i, tool in enumerate(validated_toolset.tools):
-                    if not hasattr(tool, 'name'):
-                        logging.error(f"🔧 SAFETY CHECK FAILED: Tool {i} is not a proper Tool object: {type(tool)}")
-                        raise ValueError(f"Redis toolset tool {i} is not a proper Tool object: {type(tool)}")
-                    logging.info(f"🔧 SAFETY CHECK: Tool {i} OK: {tool.name} ({type(tool).__name__})")
-                
-                # Call configure method to initialize InfraInsights client with config
-                if validated_toolset.config:
-                    logging.info(f"🔧 Calling configure method with config: {validated_toolset.config}")
-                    validated_toolset.configure(validated_toolset.config)
-                else:
-                    logging.warning(f"🔧 No config found for {name}, using defaults")
-            elif name == "infrainsights_kubernetes_enhanced" or name == "infrainsights_kubernetes_v2" or name == "infrainsights_kubernetes":
-                logging.info(f"🔧 Loading enhanced Kubernetes toolset: {name}")
-                logging.info(f"🔧 Config received: {config}")
-                validated_toolset = InfraInsightsKubernetesToolset()
-                validated_toolset.config = config.get("config")
-                logging.info(f"🔧 Extracted config: {validated_toolset.config}")
-                
-                # Safety check: Verify all tools are proper Tool objects
-                logging.info(f"🔧 SAFETY CHECK: Verifying {len(validated_toolset.tools)} Kubernetes tools")
-                for i, tool in enumerate(validated_toolset.tools):
-                    if not hasattr(tool, 'name'):
-                        logging.error(f"🔧 SAFETY CHECK FAILED: Tool {i} is not a proper Tool object: {type(tool)}")
-                        raise ValueError(f"Kubernetes toolset tool {i} is not a proper Tool object: {type(tool)}")
-                    logging.info(f"🔧 SAFETY CHECK: Tool {i} OK: {tool.name} ({type(tool).__name__})")
-                
-                # Call configure method to initialize InfraInsights client with config
-                if validated_toolset.config:
-                    logging.info(f"🔧 Calling configure method with config: {validated_toolset.config}")
-                    validated_toolset.configure(validated_toolset.config)
-                else:
-                    logging.warning(f"🔧 No config found for {name}, using defaults")
-            elif name == "infrainsights_kafka_connect_enhanced" or name == "infrainsights_kafka_connect_v2" or name == "infrainsights_kafka_connect" or name == "comprehensive_kafka_connect":
-                logging.info(f"🔧 Loading comprehensive Kafka Connect toolset: {name}")
-                logging.info(f"🔧 Config received: {config}")
-                validated_toolset = InfraInsightsKafkaConnectToolset()
-                validated_toolset.config = config.get("config")
-                logging.info(f"🔧 Extracted config: {validated_toolset.config}")
-                
-                # Safety check: Verify all tools are proper Tool objects
-                logging.info(f"🔧 SAFETY CHECK: Verifying {len(validated_toolset.tools)} Kafka Connect tools")
-                for i, tool in enumerate(validated_toolset.tools):
-                    if not hasattr(tool, 'name'):
-                        logging.error(f"🔧 SAFETY CHECK FAILED: Tool {i} is not a proper Tool object: {type(tool)}")
-                        raise ValueError(f"Kafka Connect toolset tool {i} is not a proper Tool object: {type(tool)}")
-                    logging.info(f"🔧 SAFETY CHECK: Tool {i} OK: {tool.name} ({type(tool).__name__})")
-                
-                # Call configure method to initialize InfraInsights client with config
-                if validated_toolset.config:
-                    logging.info(f"🔧 Calling configure method with config: {validated_toolset.config}")
-                    validated_toolset.configure(validated_toolset.config)
-                else:
-                    logging.warning(f"🔧 No config found for {name}, using defaults")
-            elif name == "kfuse_tempo" or name == "infrainsights_kfuse_tempo" or name == "kfuse/tempo":
-                logging.info(f"🔧 Loading Kfuse Tempo toolset: {name}")
-                logging.info(f"🔧 Config received: {config}")
-                validated_toolset = KfuseTempoToolset()
-                validated_toolset.config = config.get("config")
-                logging.info(f"🔧 Extracted config: {validated_toolset.config}")
-
-                # Safety check: Verify all tools are proper Tool objects
-                logging.info(f"🔧 SAFETY CHECK: Verifying {len(validated_toolset.tools)} Kfuse Tempo tools")
-                for i, tool in enumerate(validated_toolset.tools):
-                    if not hasattr(tool, 'name'):
-                        logging.error(
-                            f"🔧 SAFETY CHECK FAILED: Tool {i} is not a proper Tool object: {type(tool)}"
-                        )
-                        raise ValueError(
-                            f"Kfuse Tempo toolset tool {i} is not a proper Tool object: {type(tool)}"
-                        )
-                    logging.info(
-                        f"🔧 SAFETY CHECK: Tool {i} OK: {tool.name} ({type(tool).__name__})"
-                    )
-
-                # Call configure to enable the toolset if config is provided
-                if validated_toolset.config:
-                    logging.info(
-                        f"🔧 Calling configure method with config: {validated_toolset.config}"
-                    )
-                    validated_toolset.configure(validated_toolset.config)
-                else:
-                    logging.warning(f"🔧 No config found for {name}, using defaults")
-            elif toolset_type is ToolsetType.MCP:
+            # MCP server is not a built-in toolset, so we need to set the type explicitly
+            if toolset_type == ToolsetType.MCP.value:
                 validated_toolset = RemoteMCPToolset(**config, name=name)
+            elif toolset_type == ToolsetType.HTTP.value:
+                validated_toolset = HttpToolset(name=name, **config)
+            elif toolset_type == ToolsetType.DATABASE.value:
+                validated_toolset = DatabaseToolset(name=name, **config)
             elif strict_check:
                 validated_toolset = YAMLToolset(**config, name=name)  # type: ignore
             else:
@@ -306,10 +217,6 @@ def load_toolsets_from_config(
                     **config, name=name
                 )
 
-            if validated_toolset.config:
-                validated_toolset.config = env_utils.replace_env_vars_values(
-                    validated_toolset.config
-                )
             loaded_toolsets.append(validated_toolset)
         except ValidationError as e:
             logging.warning(f"Toolset '{name}' is invalid: {e}")

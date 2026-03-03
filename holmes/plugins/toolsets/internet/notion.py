@@ -1,9 +1,13 @@
-import re
-import logging
 import json
+import logging
+import re
 from typing import Any, Dict, Tuple
+
 from holmes.core.tools import (
+    StructuredToolResult,
+    StructuredToolResultStatus,
     Tool,
+    ToolInvokeContext,
     ToolParameter,
     ToolsetTag,
 )
@@ -11,10 +15,7 @@ from holmes.plugins.toolsets.internet.internet import (
     InternetBaseToolset,
     scrape,
 )
-from holmes.core.tools import (
-    StructuredToolResult,
-    ToolResultStatus,
-)
+from holmes.plugins.toolsets.utils import toolset_name_for_one_liner
 
 
 class FetchNotion(Tool):
@@ -43,7 +44,7 @@ class FetchNotion(Tool):
             return f"https://api.notion.com/v1/blocks/{notion_id}/children"
         return url  # Return original URL if no match is found
 
-    def _invoke(self, params: Any) -> StructuredToolResult:
+    def _invoke(self, params: dict, context: ToolInvokeContext) -> StructuredToolResult:
         url: str = params["url"]
 
         # Get headers from the toolset configuration
@@ -56,13 +57,13 @@ class FetchNotion(Tool):
         if not content:
             logging.error(f"Failed to retrieve content from {url}")
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to retrieve content from {url}",
                 params=params,
             )
 
         return StructuredToolResult(
-            status=ToolResultStatus.SUCCESS,
+            status=StructuredToolResultStatus.SUCCESS,
             data=self.parse_notion_content(content),
             params=params,
         )
@@ -108,7 +109,7 @@ class FetchNotion(Tool):
 
     def get_parameterized_one_liner(self, params) -> str:
         url: str = params["url"]
-        return f"fetched notion webpage {url}"
+        return f"{toolset_name_for_one_liner(self.toolset.name)}: Fetch Webpage {url}"
 
 
 class NotionToolset(InternetBaseToolset):
@@ -117,7 +118,7 @@ class NotionToolset(InternetBaseToolset):
             name="notion",
             description="Fetch notion webpages",
             icon_url="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Notion-logo.svg/2048px-Notion-logo.svg.png",
-            docs_url="https://docs.robusta.dev/master/configuration/holmesgpt/toolsets/notion.html",
+            docs_url="https://holmesgpt.dev/data-sources/builtin-toolsets/notion/",
             tools=[
                 FetchNotion(self),
             ],
@@ -133,5 +134,4 @@ class NotionToolset(InternetBaseToolset):
                 False,
                 "Notion toolset is misconfigured. Authorization header is required.",
             )
-        self.additional_headers = config["additional_headers"]
-        return True, ""
+        return super().prerequisites_callable(config)

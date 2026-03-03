@@ -9,42 +9,66 @@ if add_custom_certificate(ADDITIONAL_CERTIFICATE):
 
 # DO NOT ADD ANY IMPORTS OR CODE ABOVE THIS LINE
 # IMPORTING ABOVE MIGHT INITIALIZE AN HTTPS CLIENT THAT DOESN'T TRUST THE CUSTOM CERTIFICATE
-
-
+import sys
+from holmes.utils.colors import USER_COLOR
 import json
 import logging
 import socket
 import uuid
-import warnings
-from enum import Enum
 from pathlib import Path
 from typing import List, Optional
 
 import typer
-from rich.console import Console
-from rich.logging import RichHandler
 from rich.markdown import Markdown
 from rich.rule import Rule
 
 from holmes import get_version  # type: ignore
 from holmes.config import (
-    DEFAULT_CONFIG_LOCATION,
     Config,
     SourceFactory,
     SupportedTicketSources,
 )
-from holmes.core.prompt import build_initial_ask_messages
+from holmes.core.prompt import (
+    PromptComponent,
+    build_initial_ask_messages,
+    build_system_prompt,
+    generate_user_prompt,
+)
 from holmes.core.resource_instruction import ResourceInstructionDocument
-from holmes.core.tool_calling_llm import LLMResult
 from holmes.core.tools import pretty_print_toolset_status
+from holmes.core.tools_utils.filesystem_result_storage import tool_result_storage
+from holmes.core.tracing import SpanType, TracingFactory
 from holmes.interactive import run_interactive_loop
 from holmes.plugins.destinations import DestinationType
 from holmes.plugins.interfaces import Issue
 from holmes.plugins.prompts import load_and_render_prompt
 from holmes.plugins.sources.opsgenie import OPSGENIE_TEAM_INTEGRATION_KEY_HELP
+from holmes.utils.console.consts import system_prompt_help
+from holmes.utils.console.logging import init_logging
+from holmes.utils.console.result import handle_result
 from holmes.utils.file_utils import write_json_file
+from holmes.checks.checks_cli import checks_app
+from holmes.common.cli_commons import (
+    opt_api_key,
+    opt_config_file,
+    opt_model,
+    opt_verbose,
+)
 
 app = typer.Typer(add_completion=False, pretty_exceptions_show_locals=False)
+
+
+def _warn_deprecated_custom_runbooks(custom_runbooks: Optional[List[Path]]) -> None:
+    """Warn user about deprecated --custom-runbooks CLI flag."""
+    if custom_runbooks:
+        logging.warning(
+            "The --custom-runbooks (-r) flag is deprecated. "
+            "HolmesGPT now uses a more powerful catalog-based runbook system where the LLM can intelligently "
+            "fetch relevant runbooks on-demand. Please use the 'custom_runbook_catalogs' config field in "
+            "~/.holmes/config.yaml instead to specify runbook catalog files."
+        )
+
+
 investigate_app = typer.Typer(
     add_completion=False,
     name="investigate",
@@ -67,106 +91,14 @@ toolset_app = typer.Typer(
 )
 app.add_typer(toolset_app, name="toolset")
 
-
-class Verbosity(Enum):
-    NORMAL = 0
-    LOG_QUERIES = 1  # TODO: currently unused
-    VERBOSE = 2
-    VERY_VERBOSE = 3
+app.add_typer(checks_app, name="checks")
 
 
-def cli_flags_to_verbosity(verbose_flags: List[bool]) -> Verbosity:
-    if verbose_flags is None or len(verbose_flags) == 0:
-        return Verbosity.NORMAL
-    elif len(verbose_flags) == 1:
-        return Verbosity.LOG_QUERIES
-    elif len(verbose_flags) == 2:
-        return Verbosity.VERBOSE
-    else:
-        return Verbosity.VERY_VERBOSE
-
-
-def suppress_noisy_logs():
-    # disable INFO logs from OpenAI
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    # disable INFO logs from LiteLLM
-    logging.getLogger("LiteLLM").setLevel(logging.WARNING)
-    # disable INFO logs from AWS (relevant when using bedrock)
-    logging.getLogger("boto3").setLevel(logging.WARNING)
-    logging.getLogger("botocore").setLevel(logging.WARNING)
-    # when running in --verbose mode we don't want to see DEBUG logs from these libraries
-    logging.getLogger("openai._base_client").setLevel(logging.INFO)
-    logging.getLogger("httpcore").setLevel(logging.INFO)
-    logging.getLogger("markdown_it").setLevel(logging.INFO)
-    # suppress UserWarnings from the slack_sdk module
-    warnings.filterwarnings("ignore", category=UserWarning, module="slack_sdk.*")
-
-
-def init_logging(verbose_flags: Optional[List[bool]] = None):
-    verbosity = cli_flags_to_verbosity(verbose_flags)  # type: ignore
-
-    if verbosity == Verbosity.VERY_VERBOSE:
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format="%(message)s",
-            handlers=[
-                RichHandler(
-                    show_level=False,
-                    markup=True,
-                    show_time=False,
-                    show_path=False,
-                    console=Console(width=None),
-                )
-            ],
-        )
-    elif verbosity == Verbosity.VERBOSE:
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(message)s",
-            handlers=[
-                RichHandler(
-                    show_level=False,
-                    markup=True,
-                    show_time=False,
-                    show_path=False,
-                    console=Console(width=None),
-                )
-            ],
-        )
-        logging.getLogger().setLevel(logging.DEBUG)
-        suppress_noisy_logs()
-    else:
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(message)s",
-            handlers=[
-                RichHandler(
-                    show_level=False,
-                    markup=True,
-                    show_time=False,
-                    show_path=False,
-                    console=Console(width=None),
-                )
-            ],
-        )
-        suppress_noisy_logs()
-
-    logging.debug(f"verbosity is {verbosity}")
-
-    return Console()
-
-
-# Common cli options
+# Common cli options defined in holmes.common.cli_commons:
+# opt_api_key, opt_model, opt_config_file, opt_verbose
 # The defaults for options that are also in the config file MUST be None or else the cli defaults will override settings in the config file
-opt_api_key: Optional[str] = typer.Option(
-    None,
-    help="API key to use for the LLM (if not given, uses environment variables OPENAI_API_KEY or AZURE_API_KEY)",
-)
-opt_model: Optional[str] = typer.Option(None, help="Model to use for the LLM")
-opt_config_file: Optional[Path] = typer.Option(
-    DEFAULT_CONFIG_LOCATION,  # type: ignore
-    "--config",
-    help="Path to the config file. Defaults to ~/.holmes/config.yaml when it exists. Command line arguments take precedence over config file settings",
+opt_fast_model: Optional[str] = typer.Option(
+    None, help="Optional fast model for summarization tasks"
 )
 opt_custom_toolsets: Optional[List[Path]] = typer.Option(
     [],
@@ -178,18 +110,17 @@ opt_custom_runbooks: Optional[List[Path]] = typer.Option(
     [],
     "--custom-runbooks",
     "-r",
-    help="Path to a custom runbooks (can specify -r multiple times to add multiple runbooks)",
+    help="[DEPRECATED] Replaced by the more powerful 'custom_runbook_catalogs' config field, which enables intelligent on-demand runbook fetching.",
 )
 opt_max_steps: Optional[int] = typer.Option(
-    10,
+    40,
     "--max-steps",
     help="Advanced. Maximum number of steps the LLM can take to investigate the issue",
 )
-opt_verbose: Optional[List[bool]] = typer.Option(
-    [],
-    "--verbose",
-    "-v",
-    help="Verbose output. You can pass multiple times to increase the verbosity. e.g. -v or -vv or -vvv",
+opt_log_costs: bool = typer.Option(
+    False,
+    "--log-costs",
+    help="Show LLM cost information in the output",
 )
 opt_echo_request: bool = typer.Option(
     True,
@@ -218,21 +149,11 @@ opt_json_output_file: Optional[str] = typer.Option(
     envvar="HOLMES_JSON_OUTPUT_FILE",
 )
 
-opt_post_processing_prompt: Optional[str] = typer.Option(
-    None,
-    "--post-processing-prompt",
-    help="Adds a prompt for post processing. (Preferable for chatty ai models)",
-    envvar="HOLMES_POST_PROCESSING_PROMPT",
-)
-
 opt_documents: Optional[str] = typer.Option(
     None,
     "--documents",
     help="Additional documents to provide the LLM (typically URLs to runbooks)",
 )
-
-# Common help texts
-system_prompt_help = "Advanced. System prompt for LLM. Values starting with builtin:// are loaded from holmes/plugins/prompts, values starting with file:// are loaded from the given path, other values are interpreted as a prompt string"
 
 
 def parse_documents(documents: Optional[str]) -> List[ResourceInstructionDocument]:
@@ -245,35 +166,6 @@ def parse_documents(documents: Optional[str]) -> List[ResourceInstructionDocumen
             resource_documents.append(resource_document)
 
     return resource_documents
-
-
-def handle_result(
-    result: LLMResult,
-    console: Console,
-    destination: DestinationType,
-    config: Config,
-    issue: Issue,
-    show_tool_output: bool,
-    add_separator: bool,
-):
-    if destination == DestinationType.CLI:
-        if show_tool_output and result.tool_calls:
-            for tool_call in result.tool_calls:
-                console.print("[bold magenta]Used Tool:[/bold magenta]", end="")
-                # we need to print this separately with markup=False because it contains arbitrary text and we don't want console.print to interpret it
-                console.print(
-                    f"{tool_call.description}. Output=\n{tool_call.result}",
-                    markup=False,
-                )
-
-        console.print("[bold green]AI:[/bold green]", end=" ")
-        console.print(Markdown(result.result))  # type: ignore
-        if add_separator:
-            console.print(Rule())
-
-    elif destination == DestinationType.SLACK:
-        slack = config.create_slack_destination()
-        slack.send_issue(issue, result)
 
 
 # TODO: add streaming output
@@ -291,18 +183,16 @@ def ask(
     # common options
     api_key: Optional[str] = opt_api_key,
     model: Optional[str] = opt_model,
+    fast_model: Optional[str] = opt_fast_model,
     config_file: Optional[Path] = opt_config_file,
     custom_toolsets: Optional[List[Path]] = opt_custom_toolsets,
     max_steps: Optional[int] = opt_max_steps,
     verbose: Optional[List[bool]] = opt_verbose,
+    log_costs: bool = opt_log_costs,
     # semi-common options
     destination: Optional[DestinationType] = opt_destination,
     slack_token: Optional[str] = opt_slack_token,
     slack_channel: Optional[str] = opt_slack_channel,
-    # advanced options for this command
-    system_prompt: Optional[str] = typer.Option(
-        "builtin://generic_ask.jinja2", help=system_prompt_help
-    ),
     show_tool_output: bool = typer.Option(
         False,
         "--show-tool-output",
@@ -316,7 +206,6 @@ def ask(
     ),
     json_output_file: Optional[str] = opt_json_output_file,
     echo_request: bool = opt_echo_request,
-    post_processing_prompt: Optional[str] = opt_post_processing_prompt,
     interactive: bool = typer.Option(
         True,
         "--interactive/--no-interactive",
@@ -328,31 +217,70 @@ def ask(
         "--refresh-toolsets",
         help="Refresh the toolsets status",
     ),
+    trace: Optional[str] = typer.Option(
+        None,
+        "--trace",
+        help="Enable tracing to the specified provider (e.g., 'braintrust')",
+    ),
+    system_prompt_additions: Optional[str] = typer.Option(
+        None,
+        "--system-prompt-additions",
+        help="Additional content to append to the system prompt",
+    ),
+    bash_always_deny: bool = typer.Option(
+        False,
+        "--bash-always-deny",
+        help="Auto-deny all bash commands not in allow list without prompting",
+    ),
+    bash_always_allow: bool = typer.Option(
+        False,
+        "--bash-always-allow",
+        help="Bypass bash command approval checks. Recommended only for sandboxed environments",
+    ),
+    fast_mode: bool = typer.Option(
+        False,
+        "--fast-mode",
+        help="Skip TodoWrite planning phase for faster responses",
+    ),
 ):
     """
     Ask any question and answer using available tools
     """
-    console = init_logging(verbose)  # type: ignore
+    # Validate mutually exclusive flags
+    if bash_always_deny and bash_always_allow:
+        raise typer.BadParameter(
+            "--bash-always-deny and --bash-always-allow are mutually exclusive. Choose one."
+        )
+
+    console = init_logging(verbose, log_costs)  # type: ignore
+    # Detect and read piped input
+    piped_data = None
+
+    # when attaching a pycharm debugger sys.stdin.isatty() returns false and sys.stdin.read() is stuck
+    running_from_pycharm = os.environ.get("PYCHARM_HOSTED", False)
+
+    if not sys.stdin.isatty() and not running_from_pycharm:
+        piped_data = sys.stdin.read().strip()
+        if interactive:
+            console.print(
+                "[bold yellow]Interactive mode disabled when reading piped input[/bold yellow]"
+            )
+            interactive = False
+
     config = Config.load_from_file(
         config_file,
         api_key=api_key,
         model=model,
+        fast_model=fast_model,
         max_steps=max_steps,
         custom_toolsets_from_cli=custom_toolsets,
         slack_token=slack_token,
         slack_channel=slack_channel,
     )
 
-    ai = config.create_console_toolcalling_llm(
-        dal=None,  # type: ignore
-        refresh_toolsets=refresh_toolsets,  # flag to refresh the toolset status
-    )
-    template_context = {
-        "toolsets": ai.tool_executor.toolsets,
-        "runbooks": config.get_runbook_catalog(),
-    }
-
-    system_prompt_rendered = load_and_render_prompt(system_prompt, template_context)  # type: ignore
+    # Create tracer if trace option is provided
+    tracer = TracingFactory.create_tracer(trace, project="HolmesGPT-CLI")
+    tracer.start_experiment()
 
     if prompt_file and prompt:
         raise typer.BadParameter(
@@ -366,55 +294,107 @@ def ask(
         console.print(
             f"[bold yellow]Loaded prompt from file {prompt_file}[/bold yellow]"
         )
-    elif not prompt and not interactive:
+    elif not prompt and not interactive and not piped_data:
         raise typer.BadParameter(
             "Either the 'prompt' argument or the --prompt-file option must be provided (unless using --interactive mode)."
         )
 
+    # Handle piped data
+    if piped_data:
+        if prompt:
+            # User provided both piped data and a prompt
+            prompt = f"Here's some piped output:\n\n{piped_data}\n\n{prompt}"
+        else:
+            # Only piped data, no prompt - ask what to do with it
+            prompt = f"Here's some piped output:\n\n{piped_data}\n\nWhat can you tell me about this output?"
+
     if echo_request and not interactive and prompt:
-        console.print("[bold yellow]User:[/bold yellow] " + prompt)
+        console.print(f"[bold {USER_COLOR}]User:[/bold {USER_COLOR}] {prompt}")
 
-    if interactive:
-        run_interactive_loop(
-            ai,
-            console,
-            system_prompt_rendered,
-            prompt,
-            include_file,
-            post_processing_prompt,
-            show_tool_output,
+    # Build prompt component overrides for fast mode
+    prompt_component_overrides = None
+    if fast_mode:
+        prompt_component_overrides = {
+            PromptComponent.TODOWRITE_INSTRUCTIONS: False,
+            PromptComponent.TODOWRITE_REMINDER: False,
+        }
+
+    with tool_result_storage() as tool_results_dir:
+        ai = config.create_console_toolcalling_llm(
+            dal=None,  # type: ignore
+            refresh_toolsets=refresh_toolsets,  # flag to refresh the toolset status
+            tracer=tracer,
+            model_name=model,
+            tool_results_dir=tool_results_dir,
         )
-        return
 
-    messages = build_initial_ask_messages(
-        console,
-        system_prompt_rendered,
-        prompt,  # type: ignore
-        include_file,
-    )
+        if interactive:
+            run_interactive_loop(
+                ai,
+                console,
+                prompt,
+                include_file,
+                show_tool_output,
+                tracer,
+                config.get_runbook_catalog(),
+                system_prompt_additions,
+                json_output_file=json_output_file,
+                bash_always_deny=bash_always_deny,
+                bash_always_allow=bash_always_allow,
+                prompt_component_overrides=prompt_component_overrides,
+            )
+            return
 
-    response = ai.call(messages, post_processing_prompt)
-    messages = response.messages  # type: ignore # Update messages with the full history
+        if include_file:
+            for file_path in include_file:
+                console.print(
+                    f"[bold yellow]Adding file {file_path} to context[/bold yellow]"
+                )
 
-    if json_output_file:
-        write_json_file(json_output_file, response.model_dump())
+        messages = build_initial_ask_messages(
+            prompt,  # type: ignore
+            include_file,
+            ai.tool_executor,
+            config.get_runbook_catalog(),
+            system_prompt_additions,
+            prompt_component_overrides=prompt_component_overrides,
+        )
 
-    issue = Issue(
-        id=str(uuid.uuid4()),
-        name=prompt,  # type: ignore
-        source_type="holmes-ask",
-        raw={"prompt": prompt, "full_conversation": messages},
-        source_instance_id=socket.gethostname(),
-    )
-    handle_result(
-        response,
-        console,
-        destination,  # type: ignore
-        config,
-        issue,
-        show_tool_output,
-        False,  # type: ignore
-    )
+        with tracer.start_trace(
+            f'holmes ask "{prompt}"', span_type=SpanType.TASK
+        ) as trace_span:
+            trace_span.log(input=prompt, metadata={"type": "user_question"})
+            response = ai.call(messages, trace_span=trace_span)
+            trace_span.log(
+                output=response.result,
+            )
+            trace_url = tracer.get_trace_url()
+
+        messages = response.messages  # type: ignore # Update messages with the full history
+
+        if json_output_file:
+            write_json_file(json_output_file, response.model_dump())
+
+        issue = Issue(
+            id=str(uuid.uuid4()),
+            name=prompt,  # type: ignore
+            source_type="holmes-ask",
+            raw={"prompt": prompt, "full_conversation": messages},
+            source_instance_id=socket.gethostname(),
+        )
+        handle_result(
+            response,
+            console,
+            destination,  # type: ignore
+            config,
+            issue,
+            show_tool_output,
+            False,  # type: ignore
+            log_costs,
+        )
+
+        if trace_url:
+            console.print(f"🔍 View trace: {trace_url}")
 
 
 @investigate_app.command()
@@ -456,12 +436,12 @@ def alertmanager(
     system_prompt: Optional[str] = typer.Option(
         "builtin://generic_investigation.jinja2", help=system_prompt_help
     ),
-    post_processing_prompt: Optional[str] = opt_post_processing_prompt,
 ):
     """
     Investigate a Prometheus/Alertmanager alert
     """
     console = init_logging(verbose)
+    _warn_deprecated_custom_runbooks(custom_runbooks)
     config = Config.load_from_file(
         config_file,
         api_key=api_key,
@@ -476,10 +456,9 @@ def alertmanager(
         slack_token=slack_token,
         slack_channel=slack_channel,
         custom_toolsets_from_cli=custom_toolsets,
-        custom_runbooks=custom_runbooks,
     )
 
-    ai = config.create_console_issue_investigator()  # type: ignore
+    ai = config.create_console_issue_investigator(model_name=model)  # type: ignore
 
     source = config.create_alertmanager_source()
 
@@ -512,8 +491,6 @@ def alertmanager(
             issue=issue,
             prompt=system_prompt,  # type: ignore
             console=console,
-            instructions=None,
-            post_processing_prompt=post_processing_prompt,
         )
         results.append({"issue": issue.model_dump(), "result": result.model_dump()})
         handle_result(result, console, destination, config, issue, False, True)  # type: ignore
@@ -590,12 +567,12 @@ def jira(
     system_prompt: Optional[str] = typer.Option(
         "builtin://generic_investigation.jinja2", help=system_prompt_help
     ),
-    post_processing_prompt: Optional[str] = opt_post_processing_prompt,
 ):
     """
     Investigate a Jira ticket
     """
     console = init_logging(verbose)
+    _warn_deprecated_custom_runbooks(custom_runbooks)
     config = Config.load_from_file(
         config_file,
         api_key=api_key,
@@ -606,9 +583,8 @@ def jira(
         jira_api_key=jira_api_key,
         jira_query=jira_query,
         custom_toolsets_from_cli=custom_toolsets,
-        custom_runbooks=custom_runbooks,
     )
-    ai = config.create_console_issue_investigator()  # type: ignore
+    ai = config.create_console_issue_investigator(model_name=model)  # type: ignore
     source = config.create_jira_source()
     try:
         issues = source.fetch_issues()
@@ -629,8 +605,6 @@ def jira(
             issue=issue,
             prompt=system_prompt,  # type: ignore
             console=console,
-            instructions=None,
-            post_processing_prompt=post_processing_prompt,
         )
 
         console.print(Rule())
@@ -680,10 +654,7 @@ def ticket(
         help="ticket ID to investigate (e.g., 'KAN-1')",
     ),
     config_file: Optional[Path] = opt_config_file,  # type: ignore
-    system_prompt: Optional[str] = typer.Option(
-        "builtin://generic_ticket.jinja2", help=system_prompt_help
-    ),
-    post_processing_prompt: Optional[str] = opt_post_processing_prompt,
+    model: Optional[str] = opt_model,
 ):
     """
     Fetch and print a Jira ticket from the specified source.
@@ -716,15 +687,25 @@ def ticket(
         )
         return
 
-    system_prompt = load_and_render_prompt(
-        prompt=system_prompt,  # type: ignore
+    ai = ticket_source.config.create_console_issue_investigator(model_name=model)
+
+    # Render ticket-specific additions
+    ticket_additions = load_and_render_prompt(
+        prompt="builtin://_ticket_additions.jinja2",
         context={
             "source": source,
             "output_instructions": ticket_source.output_instructions,
         },
     )
 
-    ai = ticket_source.config.create_console_issue_investigator()
+    system_prompt = build_system_prompt(
+        toolsets=ai.tool_executor.toolsets,
+        runbooks=None,
+        system_prompt_additions=ticket_additions,
+        cluster_name=ticket_source.config.cluster_name,
+        ask_user_enabled=False,
+        prompt_component_overrides={},
+    )
     console.print(
         f"[bold yellow]Analyzing ticket: {issue_to_investigate.name}...[/bold yellow]"
     )
@@ -733,7 +714,8 @@ def ticket(
         + f" for issue '{issue_to_investigate.name}' with description:'{issue_to_investigate.description}'"
     )
 
-    result = ai.prompt_call(system_prompt, prompt, post_processing_prompt)
+    ticket_user_prompt = generate_user_prompt(prompt, context={})
+    result = ai.prompt_call(system_prompt, ticket_user_prompt)
 
     console.print(Rule())
     console.print(
@@ -754,14 +736,14 @@ def github(
     ),
     github_owner: Optional[str] = typer.Option(
         None,
-        help="The GitHub repository Owner, eg: if the repository url is https://github.com/robusta-dev/holmesgpt, the owner is robusta-dev",
+        help="The GitHub repository Owner, eg: if the repository url is https://github.com/HolmesGPT/holmesgpt, the owner is HolmesGPT",
     ),
     github_pat: str = typer.Option(
         None,
     ),
     github_repository: Optional[str] = typer.Option(
         None,
-        help="The GitHub repository name, eg: if the repository url is https://github.com/robusta-dev/holmesgpt, the repository name is holmesgpt",
+        help="The GitHub repository name, eg: if the repository url is https://github.com/HolmesGPT/holmesgpt, the repository name is holmesgpt",
     ),
     update: Optional[bool] = typer.Option(False, help="Update GitHub with AI results"),
     github_query: Optional[str] = typer.Option(
@@ -780,12 +762,12 @@ def github(
     system_prompt: Optional[str] = typer.Option(
         "builtin://generic_investigation.jinja2", help=system_prompt_help
     ),
-    post_processing_prompt: Optional[str] = opt_post_processing_prompt,
 ):
     """
     Investigate a GitHub issue
     """
     console = init_logging(verbose)  # type: ignore
+    _warn_deprecated_custom_runbooks(custom_runbooks)
     config = Config.load_from_file(
         config_file,
         api_key=api_key,
@@ -797,9 +779,8 @@ def github(
         github_repository=github_repository,
         github_query=github_query,
         custom_toolsets_from_cli=custom_toolsets,
-        custom_runbooks=custom_runbooks,
     )
-    ai = config.create_console_issue_investigator()
+    ai = config.create_console_issue_investigator(model_name=model)
     source = config.create_github_source()
     try:
         issues = source.fetch_issues()
@@ -819,8 +800,6 @@ def github(
             issue=issue,
             prompt=system_prompt,  # type: ignore
             console=console,
-            instructions=None,
-            post_processing_prompt=post_processing_prompt,
         )
 
         console.print(Rule())
@@ -866,12 +845,12 @@ def pagerduty(
     system_prompt: Optional[str] = typer.Option(
         "builtin://generic_investigation.jinja2", help=system_prompt_help
     ),
-    post_processing_prompt: Optional[str] = opt_post_processing_prompt,
 ):
     """
     Investigate a PagerDuty incident
     """
     console = init_logging(verbose)
+    _warn_deprecated_custom_runbooks(custom_runbooks)
     config = Config.load_from_file(
         config_file,
         api_key=api_key,
@@ -881,9 +860,8 @@ def pagerduty(
         pagerduty_user_email=pagerduty_user_email,
         pagerduty_incident_key=pagerduty_incident_key,
         custom_toolsets_from_cli=custom_toolsets,
-        custom_runbooks=custom_runbooks,
     )
-    ai = config.create_console_issue_investigator()
+    ai = config.create_console_issue_investigator(model_name=model)
     source = config.create_pagerduty_source()
     try:
         issues = source.fetch_issues()
@@ -905,8 +883,6 @@ def pagerduty(
             issue=issue,
             prompt=system_prompt,  # type: ignore
             console=console,
-            instructions=None,
-            post_processing_prompt=post_processing_prompt,
         )
 
         console.print(Rule())
@@ -951,13 +927,13 @@ def opsgenie(
     system_prompt: Optional[str] = typer.Option(
         "builtin://generic_investigation.jinja2", help=system_prompt_help
     ),
-    post_processing_prompt: Optional[str] = opt_post_processing_prompt,
     documents: Optional[str] = opt_documents,
 ):
     """
     Investigate an OpsGenie alert
     """
     console = init_logging(verbose)  # type: ignore
+    _warn_deprecated_custom_runbooks(custom_runbooks)
     config = Config.load_from_file(
         config_file,
         api_key=api_key,
@@ -967,9 +943,8 @@ def opsgenie(
         opsgenie_team_integration_key=opsgenie_team_integration_key,
         opsgenie_query=opsgenie_query,
         custom_toolsets_from_cli=custom_toolsets,
-        custom_runbooks=custom_runbooks,
     )
-    ai = config.create_console_issue_investigator()
+    ai = config.create_console_issue_investigator(model_name=model)
     source = config.create_opsgenie_source()
     try:
         issues = source.fetch_issues()
@@ -988,8 +963,6 @@ def opsgenie(
             issue=issue,
             prompt=system_prompt,  # type: ignore
             console=console,
-            instructions=None,
-            post_processing_prompt=post_processing_prompt,
         )
 
         console.print(Rule())

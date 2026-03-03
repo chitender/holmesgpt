@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 
+import logging
 import os
 import sys
-import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
+from tests.conftest import create_mock_tool_invoke_context
 
 # Add the project root to sys.path so we can import modules
 sys.path.insert(0, "/home/nherment/workspace/robusta-dev/holmesgpt")
 
 from holmes.plugins.toolsets.azure_sql.azure_sql_toolset import (
-    AzureSQLToolset,
-    GetActiveAlerts,
     AzureSQLConfig,
     AzureSQLDatabaseConfig,
+    AzureSQLToolset,
+    GetActiveAlerts,
 )
 
 
@@ -203,7 +205,7 @@ def main():
         # Create and invoke the GetActiveAlerts tool
         print("\n🚨 Retrieving active alerts (using demo data)...")
         alerts_tool = GetActiveAlerts(toolset)
-        result = alerts_tool._invoke({})
+        result = alerts_tool._invoke({}, context=create_mock_tool_invoke_context())
 
         if result.status.value == "success":
             print("✅ Successfully retrieved alerts!")

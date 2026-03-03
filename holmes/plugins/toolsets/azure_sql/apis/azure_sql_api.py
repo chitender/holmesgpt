@@ -1,35 +1,17 @@
-from typing import Dict, List
 import logging
 import struct
+from typing import Dict, List
 
-# Make Azure and ODBC imports optional for local testing
-try:
-    import pyodbc
-    PYODBC_AVAILABLE = True
-except ImportError:
-    PYODBC_AVAILABLE = False
-
-try:
-    from azure.core.credentials import TokenCredential
-    from azure.mgmt.sql import SqlManagementClient
-    AZURE_AVAILABLE = True
-except ImportError:
-    TokenCredential = None
-    SqlManagementClient = None
-    AZURE_AVAILABLE = False
+from azure.core.credentials import TokenCredential
+from azure.mgmt.sql import SqlManagementClient
 
 
 class AzureSQLAPIClient:
     def __init__(
         self,
-        credential,
+        credential: TokenCredential,
         subscription_id: str,
     ):
-        if not AZURE_AVAILABLE:
-            raise ImportError("Azure SDK is not available. Please install azure-mgmt-sql package.")
-        if not PYODBC_AVAILABLE:
-            raise ImportError("pyodbc is not available. Please install pyodbc package.")
-        
         self.sql_client = SqlManagementClient(credential, subscription_id)
         self.credential = credential
 
@@ -56,6 +38,8 @@ class AzureSQLAPIClient:
         self, server_name: str, database_name: str, query: str
     ) -> List[Dict]:
         """Execute a T-SQL query against the Azure SQL database."""
+        import pyodbc  # type: ignore
+
         conn = None
         cursor = None
 
@@ -196,7 +180,7 @@ class AzureSQLAPIClient:
             server_name=server_name,
             database_name=database_name,
         )
-        return tuning.as_dict()
+        return dict(tuning.as_dict())
 
     def get_top_cpu_queries(
         self,

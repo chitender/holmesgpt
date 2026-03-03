@@ -6,67 +6,36 @@ This toolset uses the AdminClient of the [confluent-kafka python library](https:
 
 ## Configuration
 
-=== "Holmes CLI"
-
-    Add the following to **~/.holmes/config.yaml**. Create the file if it doesn't exist:
-
-    ```yaml
-    toolsets:
-        kafka/admin:
-            enabled: true
-            config:
-                kafka_clusters:
-                    - name: aks-prod-kafka
-                      kafka_broker: kafka-1.aks-prod-kafka-brokers.kafka.svc:9095
-                      kafka_username: kafka-plaintext-user
-                      kafka_password: ******
-                      kafka_sasl_mechanism: SCRAM-SHA-512
-                      kafka_security_protocol: SASL_PLAINTEXT
-                    - name: gke-stg-kafka
-                      kafka_broker: gke-kafka.gke-stg-kafka-brokers.kafka.svc:9095
-                      kafka_username: kafka-plaintext-user
-                      kafka_password: ****
-                      kafka_sasl_mechanism: SCRAM-SHA-512
-                      kafka_security_protocol: SASL_PLAINTEXT
-    ```
-
-    --8<-- "snippets/toolset_refresh_warning.md"
-
-=== "Robusta Helm Chart"
-
-    ```yaml
-    holmes:
-        toolsets:
-            kafka/admin:
-                enabled: true
-                config:
-                    kafka_clusters:
-                        - name: aks-prod-kafka
-                          kafka_broker: kafka-1.aks-prod-kafka-brokers.kafka.svc:9095
-                          kafka_username: kafka-plaintext-user
-                          kafka_password: ******
-                          kafka_sasl_mechanism: SCRAM-SHA-512
-                          kafka_security_protocol: SASL_PLAINTEXT
-                        - name: gke-stg-kafka
-                          kafka_broker: gke-kafka.gke-stg-kafka-brokers.kafka.svc:9095
-                          kafka_username: kafka-plaintext-user
-                          kafka_password: ****
-                          kafka_sasl_mechanism: SCRAM-SHA-512
-                          kafka_security_protocol: SASL_PLAINTEXT
-    ```
-
-    --8<-- "snippets/helm_upgrade_command.md"
+```yaml-toolset-config
+toolsets:
+    kafka/admin:
+        enabled: true
+        config:
+            clusters:
+                - name: aks-prod-kafka
+                  broker: kafka-1.aks-prod-kafka-brokers.kafka.svc:9095
+                  username: kafka-plaintext-user
+                  password: ******
+                  sasl_mechanism: SCRAM-SHA-512
+                  security_protocol: SASL_PLAINTEXT
+                - name: gke-stg-kafka
+                  broker: gke-kafka.gke-stg-kafka-brokers.kafka.svc:9095
+                  username: kafka-plaintext-user
+                  password: ****
+                  sasl_mechanism: SCRAM-SHA-512
+                  security_protocol: SASL_PLAINTEXT
+```
 
 Below is a description of the configuration field for each cluster:
 
 | Config key | Description |
 |------------|-------------|
 | name | Give a meaningful name to your cluster. Holmes will use it to decide what cluster to look into. Names must be unique across all clusters. |
-| kafka_broker | List of host/port pairs to use for establishing the initial connection to the Kafka cluster |
-| kafka_username | Username for SASL authentication |
-| kafka_password | Password for SASL authentication |
-| kafka_sasl_mechanism | SASL mechanism (e.g., SCRAM-SHA-512) |
-| kafka_security_protocol | Security protocol (e.g., SASL_PLAINTEXT) |
+| broker | List of host/port pairs to use for establishing the initial connection to the Kafka cluster |
+| username | Username for SASL authentication |
+| password | Password for SASL authentication |
+| sasl_mechanism | SASL mechanism (e.g., SCRAM-SHA-512) |
+| security_protocol | Security protocol (e.g., SASL_PLAINTEXT) |
 
 ## Capabilities
 

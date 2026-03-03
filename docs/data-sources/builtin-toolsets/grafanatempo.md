@@ -1,6 +1,6 @@
-# Grafana Tempo
+# Tempo
 
-By enabling this toolset, HolmesGPT will be able to fetch trace information from Grafana Tempo to debug performance related issues, like high latency in your application.
+By enabling this toolset, HolmesGPT will be able to fetch trace information from Tempo to debug performance related issues, like high latency in your application.
 
 ## Proxying through Grafana
 
@@ -70,7 +70,7 @@ In this case, the Tempo datasource UID is `klja8hsa-8a9c-4b35-1230-7baab22b02ee`
         enabled: true
         config:
           api_key: <your grafana service account token>
-          url: <your grafana url> # e.g. https://acme-corp.grafana.net
+          api_url: <your grafana url> # e.g. https://acme-corp.grafana.net
           grafana_datasource_uid: <the UID of the tempo data source in Grafana>
     ```
 
@@ -91,14 +91,8 @@ In this case, the Tempo datasource UID is `klja8hsa-8a9c-4b35-1230-7baab22b02ee`
           enabled: true
           config:
             api_key: <your grafana API key>
-            url: <your grafana url> # e.g. https://acme-corp.grafana.net
+            api_url: <your grafana url> # e.g. https://acme-corp.grafana.net
             grafana_datasource_uid: <the UID of the tempo data source in Grafana>
-            labels:
-              pod: "k8s.pod.name"
-              namespace: "k8s.namespace.name"
-              deployment: "k8s.deployment.name"
-              node: "k8s.node.name"
-              service: "service.name"
     ```
 
 ## Direct Connection
@@ -116,8 +110,8 @@ The toolset can directly connect to a Tempo instance without proxying through a 
       grafana/tempo:
         enabled: true
         config:
-          url: http://tempo.monitoring
-          headers:
+          api_url: http://tempo.monitoring
+          additional_headers:
             X-Scope-OrgID: "<tenant id>" # Set the X-Scope-OrgID if tempo multitenancy is enabled
     ```
 
@@ -131,56 +125,92 @@ The toolset can directly connect to a Tempo instance without proxying through a 
         grafana/tempo:
           enabled: true
           config:
-            url: http://tempo.monitoring
-            headers:
+            api_url: http://tempo.monitoring
+            additional_headers:
               X-Scope-OrgID: "<tenant id>" # Set the X-Scope-OrgID if tempo multitenancy is enabled
     ```
 
 ## Advanced Configuration
 
-### Search Labels
+### SSL Verification
 
-You can tweak the labels used by the toolset to identify Kubernetes resources. This is only needed if the trace labels differ from the defaults.
+For self-signed certificates, you can disable SSL verification:
 
-=== "Holmes CLI"
+```yaml
+toolsets:
+  grafana/tempo:
+    enabled: true
+    config:
+      api_url: https://tempo.internal
+      verify_ssl: false  # Disable SSL verification (default: true)
+```
 
-    Add the following to **~/.holmes/config.yaml**:
+### External URL
 
-    ```yaml
-    toolsets:
-      grafana/tempo:
-        enabled: true
-        config:
-          url: ...
-          labels:
-            pod: "k8s.pod.name"
-            namespace: "k8s.namespace.name"
-            deployment: "k8s.deployment.name"
-            node: "k8s.node.name"
-            service: "service.name"
-    ```
+If HolmesGPT accesses Tempo through an internal URL but you want clickable links in results to use a different URL:
 
-=== "Robusta Helm Chart"
+```yaml
+toolsets:
+  grafana/tempo:
+    enabled: true
+    config:
+      api_url: http://tempo.internal:3100  # Internal URL for API calls
+      external_url: https://tempo.example.com  # URL for links in results
+      grafana_datasource_uid: <tempo datasource uid>
+```
 
-    ```yaml
-    holmes:
-      toolsets:
-        grafana/tempo:
-          enabled: true
-          config:
-            url: ...
-            labels:
-              pod: "k8s.pod.name"
-              namespace: "k8s.namespace.name"
-              deployment: "k8s.deployment.name"
-              node: "k8s.node.name"
-              service: "service.name"
-    ```
+### Custom Label Mappings
+
+Tempo uses resource attributes to identify Kubernetes resources. If your setup uses different attribute names, you can customize the mappings:
+
+```yaml
+toolsets:
+  grafana/tempo:
+    enabled: true
+    config:
+      api_url: https://grafana.example.com
+      grafana_datasource_uid: <tempo datasource uid>
+      labels:
+        pod: "k8s.pod.name"           # default
+        namespace: "k8s.namespace.name"  # default
+        deployment: "k8s.deployment.name"  # default
+        node: "k8s.node.name"         # default
+        service: "service.name"       # default
+```
+
+## Example Usage
+
+### Finding Slow Traces
+
+```bash
+homles ask "Find traces where the payment service is taking longer than 1 second"
+```
+
+Holmes will use TraceQL to search for slow operations:
+```
+{resource.service.name="payment" && duration > 1s}
+```
+
+### Analyzing Errors
+
+```bash
+homles ask "Show me traces with HTTP 500 errors in the frontend service"
+```
+
+Holmes will search using:
+```
+{resource.service.name="frontend" && span.http.status_code = 500}
+```
 
 ## Capabilities
 
 | Tool Name | Description |
 |-----------|-------------|
-| fetch_tempo_tags | List the tags available in Tempo |
-| fetch_tempo_traces | Lists Tempo traces. At least one of `service_name`, `pod_name`, or `deployment_name` argument is required. |
-| fetch_tempo_trace_by_id | Retrieves detailed information about a Tempo trace using its trace ID. Use this to investigate a trace. |
+| tempo_fetch_traces_comparative_sample | Fetches statistics and samples of fast/slow/typical traces for performance analysis |
+| tempo_search_traces_by_query | Search traces using TraceQL query language (recommended) |
+| tempo_search_traces_by_tags | Search traces using logfmt-encoded tags (legacy) |
+| tempo_query_trace_by_id | Retrieve detailed trace information by trace ID |
+| tempo_search_tag_names | Discover available tag names across traces |
+| tempo_search_tag_values | Get all values for a specific tag |
+| tempo_query_metrics_instant | Compute a single TraceQL metric value across time range |
+| tempo_query_metrics_range | Get time series data from TraceQL metrics queries |

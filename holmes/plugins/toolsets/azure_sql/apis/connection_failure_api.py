@@ -1,16 +1,9 @@
-from typing import Dict, List, Any
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List
 
-# Make Azure imports optional for local testing
-try:
-    from azure.core.credentials import TokenCredential
-    from azure.mgmt.monitor import MonitorManagementClient
-    AZURE_AVAILABLE = True
-except ImportError:
-    TokenCredential = None
-    MonitorManagementClient = None
-    AZURE_AVAILABLE = False
+from azure.core.credentials import TokenCredential
+from azure.mgmt.monitor import MonitorManagementClient
 
 
 class ConnectionFailureAPI:
@@ -18,12 +11,9 @@ class ConnectionFailureAPI:
 
     def __init__(
         self,
-        credential,
+        credential: TokenCredential,
         subscription_id: str,
     ):
-        if not AZURE_AVAILABLE:
-            raise ImportError("Azure SDK is not available. Please install azure-mgmt-monitor package.")
-        
         self.credential = credential
         self.subscription_id = subscription_id
         self.monitor_client = MonitorManagementClient(credential, subscription_id)
@@ -145,6 +135,8 @@ class ConnectionFailureAPI:
                     for metric in metrics.value:
                         if metric.timeseries:
                             for timeseries in metric.timeseries:
+                                if timeseries.data is None:
+                                    continue
                                 for data_point in timeseries.data:
                                     if data_point.time_stamp:
                                         metric_values.append(

@@ -1,12 +1,14 @@
 from typing import Dict
-from holmes.plugins.prompts import load_and_render_prompt
+
 from holmes.core.tools import (
     StaticPrerequisite,
     StructuredToolResult,
+    StructuredToolResultStatus,
     Tool,
-    ToolResultStatus,
+    ToolInvokeContext,
     Toolset,
 )
+from holmes.plugins.prompts import load_and_render_prompt
 
 template = "builtin://_toolsets_instructions.jinja2"
 
@@ -15,8 +17,8 @@ class DummyTool(Tool):
     def __init__(self):
         super().__init__(name="dummy_tool_name", description="tool description")
 
-    def _invoke(self, params):
-        return StructuredToolResult(status=ToolResultStatus.SUCCESS, data="")
+    def _invoke(self, params: dict, context: ToolInvokeContext) -> StructuredToolResult:
+        return StructuredToolResult(status=StructuredToolResultStatus.SUCCESS, data="")
 
     def get_parameterized_one_liner(self, params: Dict) -> str:
         return ""
@@ -34,9 +36,6 @@ class MockToolset(Toolset):
         if self.enabled:
             self.check_prerequisites()
 
-    def get_example_config(self):
-        return {}
-
 
 def test_renders_single_toolset_with_instructions():
     """Test that template properly renders toolsets with llm_instructions."""
@@ -48,10 +47,9 @@ def test_renders_single_toolset_with_instructions():
         MockToolset({"name": "Tool5", "llm_instructions": ""}),
     ]
     result = load_and_render_prompt(template, {"toolsets": toolsets})
-    expected = "# Available Toolsets\n\n## Tool3\n\nInstructions for Tool3"
     print(f"** result:\n{result}")
-    print(f"** expected:\n{expected}")
-    assert expected in result
+    assert "# Available Toolsets\n" in result
+    assert "## Tool3\n\nInstructions for Tool3" in result
 
 
 def test_renders_toolsets_with_instructions():
@@ -64,10 +62,11 @@ def test_renders_toolsets_with_instructions():
         MockToolset({"name": "Tool5", "llm_instructions": "\nInstructions for Tool5"}),
     ]
     result = load_and_render_prompt(template, {"toolsets": toolsets})
-    expected = "# Available Toolsets\n\n## Tool1\n\nInstructions for Tool1\n\n## Tool3\n\nInstructions for Tool3\n\n## Tool5\n\nInstructions for Tool5"
     print(f"** result:\n{result}")
-    print(f"** expected:\n{expected}")
-    assert expected in result
+    assert "# Available Toolsets\n" in result
+    assert "## Tool1\n\nInstructions for Tool1" in result
+    assert "## Tool3\n\nInstructions for Tool3" in result
+    assert "## Tool5\n\nInstructions for Tool5" in result
 
 
 def test_renders_disabled_toolsets():

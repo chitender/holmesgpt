@@ -1,10 +1,10 @@
-import logging
-from typing import Any, Dict, Optional, Tuple
 import json
+import logging
 import re
 from contextlib import suppress
-from holmes.common.env_vars import load_bool
+from typing import Any, Dict, Optional, Tuple
 
+from holmes.common.env_vars import load_bool
 
 REQUEST_STRUCTURED_OUTPUT_FROM_LLM = load_bool(
     "REQUEST_STRUCTURED_OUTPUT_FROM_LLM", True
@@ -49,7 +49,7 @@ def get_output_format_for_investigation(
         "json_schema": {
             "name": "InvestigationResult",
             "schema": schema,
-            "strict": False,
+            "strict": False,  # TODO: remove explicit False - let ensure_strict_response_format handle it
         },
     }
 
@@ -177,6 +177,18 @@ def pre_format_sections(response: Any) -> Any:
         # In that case it gets parsed once to get rid of the first level of marshalling
         with suppress(Exception):
             response = json.loads(response)
+
+    # Try to find any embedded code block with or without "json" label and parse it
+    # This has been seen a lot in newer bedrock models
+    # This is a more robust check for patterns like ```json\n{...}\n``` or ```\n{...}\n```
+    matches = re.findall(r"```(?:json)?\s*\n(.*?)\n```", response, re.DOTALL)
+    for block in matches:
+        with suppress(Exception):
+            parsed = json.loads(block)
+            if isinstance(parsed, dict):
+                logging.info("Extracted and parsed embedded JSON block successfully.")
+                return json.dumps(parsed)
+
     return response
 
 
@@ -262,3 +274,10 @@ def is_response_an_incorrect_tool_call(
                     return False
             return True
     return False
+
+
+def clear_json_markdown(text: str):
+    if text and text.startswith("```json") and text.endswith("```"):
+        return text[8:-3]
+
+    return text

@@ -1,8 +1,10 @@
 import pytest
 from dateutil import parser  # type: ignore
+from freezegun import freeze_time
+
 from holmes.core.tools import (
     StructuredToolResult,
-    ToolResultStatus,
+    StructuredToolResultStatus,
     Toolset,
     ToolsetStatusEnum,
 )
@@ -11,8 +13,11 @@ from holmes.plugins.toolsets.logging_utils.logging_api import (
     BasePodLoggingToolset,
     FetchPodLogsParams,
 )
-from holmes.plugins.toolsets.utils import process_timestamps_to_rfc3339, to_unix_ms
-from freezegun import freeze_time
+from holmes.plugins.toolsets.utils import (
+    process_timestamps_to_rfc3339,
+    to_unix_ms,
+    toolset_name_for_one_liner,
+)
 
 
 @freeze_time("2020-09-14T13:50:40Z")
@@ -148,17 +153,16 @@ class DummyNonLoggingToolset(Toolset):
             name="non_logging_toolset", description="Dummy toolset", tools=[]
         )
 
-    def _invoke(self, params: dict) -> StructuredToolResult:
-        return StructuredToolResult(status=ToolResultStatus.SUCCESS)
+    def _invoke(
+        self, params: dict, user_approved: bool = False
+    ) -> StructuredToolResult:
+        return StructuredToolResult(status=StructuredToolResultStatus.SUCCESS)
 
     def get_parameterized_one_liner(self, params: dict) -> str:
         """Generate a one-line description of this tool invocation"""
         namespace = params.get("namespace", "unknown-namespace")
         pod_name = params.get("pod_name", "unknown-pod")
         return f"Fetching logs for pod {pod_name} in namespace {namespace}"
-
-    def get_example_config(self):
-        return {}
 
 
 class DummyLoggingToolset(BasePodLoggingToolset):
@@ -167,11 +171,12 @@ class DummyLoggingToolset(BasePodLoggingToolset):
         if enabled:
             self.status = ToolsetStatusEnum.ENABLED
 
-    def fetch_pod_logs(self, params: FetchPodLogsParams) -> StructuredToolResult:
-        return StructuredToolResult(status=ToolResultStatus.SUCCESS)
+    @property
+    def supported_capabilities(self) -> set:
+        return set()  # No advanced capabilities for dummy toolset
 
-    def get_example_config(self):
-        return {}
+    def fetch_pod_logs(self, params: FetchPodLogsParams) -> StructuredToolResult:
+        return StructuredToolResult(status=StructuredToolResultStatus.SUCCESS)
 
 
 @pytest.mark.parametrize(
@@ -246,3 +251,15 @@ def test_filter_out_default_toolset(unfiltered_toolsets, expected_toolsets):
     filtered_toolsets_names = [t.name for t in filtered_toolsets].sort()
 
     assert expected_toolsets_names == filtered_toolsets_names
+
+
+@pytest.mark.parametrize(
+    "toolset_name, expected_name",
+    [
+        ("datadog/traces", "Datadog"),
+        ("datadog", "Datadog"),
+        ("", ""),
+    ],
+)
+def test_toolset_name_for_one_liner(toolset_name, expected_name):
+    assert toolset_name_for_one_liner(toolset_name) == expected_name

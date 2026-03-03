@@ -1,9 +1,9 @@
 import os
 import subprocess
-from typing import Any, Dict
 from unittest.mock import Mock, patch
 
 import pytest
+from mcp.types import Tool as MCP_Tool
 
 from holmes.config import Config
 from holmes.core.tools import (
@@ -16,7 +16,10 @@ from holmes.core.tools import (
     ToolsetTag,
     YAMLTool,
 )
+from holmes.plugins.toolsets import load_builtin_toolsets
+from holmes.plugins.toolsets.mcp.toolset_mcp import RemoteMCPToolset
 from holmes.utils.holmes_sync_toolsets import holmes_sync_toolsets_status
+from tests.utils.bad_toolset_example import BadTool, BadToolset
 from tests.utils.toolsets import callable_success, failing_callable_for_test
 
 
@@ -32,12 +35,13 @@ def mock_dal():
 def mock_config():
     config = Mock(spec=Config)
     config.cluster_name = "test-cluster"
+    all_toolsets = load_builtin_toolsets(dal=None)
+    config.create_tool_executor.return_value = Mock(toolsets=all_toolsets)
     return config
 
 
 class SampleToolset(Toolset):
-    def get_example_config(self) -> Dict[str, Any]:
-        return {}
+    pass
 
 
 @pytest.fixture
@@ -83,22 +87,26 @@ def test_sync_toolsets_no_cluster_name(mock_dal):
     mock_dal.sync_toolsets.assert_not_called()
 
 
-@patch(
-    "holmes.utils.holmes_sync_toolsets.render_default_installation_instructions_for_toolset"
-)
-def test_sync_toolsets_with_installation_instructions(
-    mock_render, mock_dal, mock_config, sample_toolset
-):
-    mock_render.return_value = "Test installation instructions"
-    mock_config.create_tool_executor.return_value = Mock(toolsets=[sample_toolset])
+@patch("subprocess.run")
+def test_sync_toolsets_with_config_schema(mock_subprocess_run, mock_dal, mock_config):
+    mock_subprocess_run.return_value = Mock(stdout="success", returncode=0)
+
+    # Create a toolset without config_classes - should have null schema
+    toolset = SampleToolset(
+        name="test-toolset",
+        description="Test toolset",
+        enabled=True,
+        tools=[YAMLTool(name="tool1", description="Tool 1", command="echo test")],
+        tags=[ToolsetTag.CORE],
+    )
+    toolset.check_prerequisites()
+    mock_config.create_tool_executor.return_value = Mock(toolsets=[toolset])
 
     holmes_sync_toolsets_status(mock_dal, mock_config)
 
     mock_dal.sync_toolsets.assert_called_once()
     toolset_data = mock_dal.sync_toolsets.call_args[0][0][0]
-
-    assert toolset_data["installation_instructions"] == "Test installation instructions"
-    mock_render.assert_called_once_with(sample_toolset)
+    assert toolset_data["installation_instructions"] is not None
 
 
 @patch("subprocess.run")
@@ -388,3 +396,73 @@ def test_sync_toolsets_with_toolset_having_failing_callable_prerequisite(
     assert success2_data is not None
     assert success2_data["status"] == ToolsetStatusEnum.ENABLED
     assert success2_data["error"] is None
+
+
+def test_toolsets_dumpable(mock_dal, mock_config):
+    """Test that all toolsets can be serialized via holmes_sync_toolsets_status.
+
+    Validates production path: holmes_sync_toolsets_status line 53 (toolset.model_dump())
+    -> ToolsetDBModel -> dal.sync_toolsets() for sending to database.
+    """
+    holmes_sync_toolsets_status(mock_dal, mock_config)
+
+
+def _mock_get_server_tools(mock_tools_result):
+    async def mock_get_server_tools():
+        return mock_tools_result
+
+    return mock_get_server_tools
+
+
+def _create_mcp_toolset_with_tools(toolset_class):
+    mcp_toolset = toolset_class(
+        name="test-mcp-circular",
+        description="Test MCP toolset",
+        config={"url": "http://example.com/mcp", "mode": "sse"},
+    )
+
+    mock_tools_result = Mock()
+    mock_tools_result.tools = [
+        MCP_Tool(
+            name="test_tool",
+            description="Test tool",
+            inputSchema={"type": "object", "properties": {}, "required": []},
+        )
+    ]
+
+    mcp_toolset._get_server_tools = _mock_get_server_tools(mock_tools_result)
+    success, error = mcp_toolset.prerequisites_callable(
+        {"url": "http://example.com/mcp", "mode": "sse"}
+    )
+
+    assert success is True
+    assert len(mcp_toolset.tools) > 0
+    return mcp_toolset
+
+
+def _create_bad_toolset():
+    toolset = BadToolset(name="test-bad-toolset", description="Test bad toolset")
+    mock_tool = MCP_Tool(
+        name="test_tool",
+        description="Test tool",
+        inputSchema={"type": "object", "properties": {}, "required": []},
+    )
+    toolset.tools = [BadTool.create(mock_tool, toolset)]
+    return toolset
+
+
+def test_toolsets_dumpable_with_mcp_toolset_passes(mock_dal, mock_config):
+    """Test that RemoteMCPToolset passes serialization with Field(exclude=True).
+
+    Validates production path: holmes_sync_toolsets_status line 53 (toolset.model_dump())
+    -> ToolsetDBModel -> dal.sync_toolsets() for sending to database.
+    RemoteMCPToolset is not in builtin toolsets, it's loaded from config.
+    """
+    original_toolsets = list(mock_config.create_tool_executor.return_value.toolsets)
+
+    mcp_toolset_good = _create_mcp_toolset_with_tools(RemoteMCPToolset)
+    all_toolsets_good = list(original_toolsets)
+    all_toolsets_good.append(mcp_toolset_good)
+    mock_config.create_tool_executor.return_value.toolsets = all_toolsets_good
+
+    holmes_sync_toolsets_status(mock_dal, mock_config)

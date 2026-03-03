@@ -1,5 +1,0 @@
-expected_output:
-  - The pod fails in pulling the Docker image `yourcompany/crw:latest`
-evaluation:
-  correctness: 1
-# Success rate 100% for 100 evals

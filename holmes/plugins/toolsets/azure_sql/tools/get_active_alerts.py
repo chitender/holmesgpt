@@ -1,18 +1,22 @@
 import logging
-from typing import Dict
 from datetime import datetime, timezone
+from typing import Dict, Tuple
 
-from holmes.core.tools import StructuredToolResult, ToolResultStatus
-from holmes.plugins.toolsets.azure_sql.azure_base_toolset import (
-    BaseAzureSQLTool,
-    BaseAzureSQLToolset,
-    AzureSQLDatabaseConfig,
+from holmes.core.tools import (
+    StructuredToolResult,
+    StructuredToolResultStatus,
+    ToolInvokeContext,
 )
-from holmes.plugins.toolsets.azure_sql.apis.azure_sql_api import AzureSQLAPIClient
 from holmes.plugins.toolsets.azure_sql.apis.alert_monitoring_api import (
     AlertMonitoringAPI,
 )
-from typing import Tuple
+from holmes.plugins.toolsets.azure_sql.apis.azure_sql_api import AzureSQLAPIClient
+from holmes.plugins.toolsets.azure_sql.azure_base_toolset import (
+    AzureSQLDatabaseConfig,
+    BaseAzureSQLTool,
+    BaseAzureSQLToolset,
+)
+from holmes.plugins.toolsets.utils import toolset_name_for_one_liner
 
 
 class GetActiveAlerts(BaseAzureSQLTool):
@@ -145,7 +149,7 @@ class GetActiveAlerts(BaseAzureSQLTool):
 
         return "\n".join(report_sections)
 
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: dict, context: ToolInvokeContext) -> StructuredToolResult:
         try:
             db_config = self.toolset.database_config()
             api_client = self.toolset.api_client()
@@ -166,7 +170,7 @@ class GetActiveAlerts(BaseAzureSQLTool):
             # Check for errors
             if "error" in alerts_data:
                 return StructuredToolResult(
-                    status=ToolResultStatus.ERROR,
+                    status=StructuredToolResultStatus.ERROR,
                     error=alerts_data["error"],
                     params=params,
                 )
@@ -175,7 +179,7 @@ class GetActiveAlerts(BaseAzureSQLTool):
             report_text = self._build_alerts_report(db_config, alerts_data, "active")
 
             return StructuredToolResult(
-                status=ToolResultStatus.SUCCESS,
+                status=StructuredToolResultStatus.SUCCESS,
                 data=report_text,
                 params=params,
             )
@@ -183,14 +187,14 @@ class GetActiveAlerts(BaseAzureSQLTool):
             error_msg = f"Failed to retrieve active alerts: {str(e)}"
             logging.error(error_msg)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=error_msg,
                 params=params,
             )
 
     def get_parameterized_one_liner(self, params: Dict) -> str:
         db_config = self.toolset.database_config()
-        return f"Fetch active alerts for database {db_config.server_name}/{db_config.database_name}"
+        return f"{toolset_name_for_one_liner(self.toolset.name)}: Get Active Alerts ({db_config.server_name}/{db_config.database_name})"
 
     @staticmethod
     def validate_config(

@@ -1,6 +1,7 @@
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, field
 import base64
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
 from holmes.plugins.toolsets.utils import unix_nano_to_rfc3339
 
 
@@ -187,7 +188,7 @@ def format_traces_list(trace_data: Dict) -> str:
                 else "\n"
             )
             trace_str += f"\tstartTime={unix_nano_to_rfc3339(int(trace.get('startTimeUnixNano')))}"
-            trace_str += f" rootServiceName={trace.get('trootServiceName')}"
+            trace_str += f" rootServiceName={trace.get('rootServiceName')}"
             trace_str += f" rootTraceName={trace.get('rootTraceName')}"
             traces_str.append(trace_str)
         return "\n".join(traces_str)

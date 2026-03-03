@@ -1,11 +1,11 @@
-from enum import Enum
 import json
 import logging
-import urllib.parse
 from datetime import datetime
-from typing import Any, NamedTuple, Optional, Dict, List
+from typing import Any, Dict, List, NamedTuple, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from holmes.utils.pydantic_utils import ToolsetConfig
 
 
 class FlattenedLog(NamedTuple):
@@ -19,51 +19,108 @@ class CoralogixQueryResult(BaseModel):
     error: Optional[str]
 
 
-class CoralogixLabelsConfig(BaseModel):
-    pod: str = "kubernetes.pod_name"
-    namespace: str = "kubernetes.namespace_name"
-    log_message: str = "log"
-
-
-class CoralogixLogsMethodology(str, Enum):
-    FREQUENT_SEARCH_ONLY = "FREQUENT_SEARCH_ONLY"
-    ARCHIVE_ONLY = "ARCHIVE_ONLY"
-    ARCHIVE_FALLBACK = "ARCHIVE_FALLBACK"
-    FREQUENT_SEARCH_FALLBACK = "FREQUENT_SEARCH_FALLBACK"
-    BOTH_FREQUENT_SEARCH_AND_ARCHIVE = "BOTH_FREQUENT_SEARCH_AND_ARCHIVE"
-
-
-class CoralogixConfig(BaseModel):
-    team_hostname: str
-    domain: str
-    api_key: str
-    labels: CoralogixLabelsConfig = CoralogixLabelsConfig()
-    logs_retrieval_methodology: CoralogixLogsMethodology = (
-        CoralogixLogsMethodology.ARCHIVE_FALLBACK
+class CoralogixLabelsConfig(ToolsetConfig):
+    pod: str = Field(
+        default="resource.attributes.k8s.pod.name",
+        title="Pod Field",
+        description="Field path for pod name in log entries",
+    )
+    namespace: str = Field(
+        default="resource.attributes.k8s.namespace.name",
+        title="Namespace Field",
+        description="Field path for namespace in log entries",
+    )
+    log_message: str = Field(
+        default="logRecord.body",
+        title="Log Message Field",
+        description="Field path for log message content",
+    )
+    timestamp: str = Field(
+        default="logRecord.attributes.time",
+        title="Timestamp Field",
+        description="Field path for timestamp in log entries",
     )
 
 
+class CoralogixConfig(ToolsetConfig):
+    """Coralogix toolset configuration.
+
+    Required:
+        domain: Coralogix region domain (e.g., "eu2.coralogix.com")
+        api_key: API key with DataQuerying permissions
+
+    Optional:
+        team_slug: Your team's URL slug (e.g., "my-team" from https://my-team.eu2.coralogix.com).
+                   Only needed to generate clickable UI permalink URLs in tool output.
+        labels: Label mappings for log fields (for Kubernetes log extraction)
+    """
+
+    model_config = ConfigDict(extra="allow")
+    domain: str = Field(
+        title="Domain",
+        description="Coralogix domain",
+        examples=["eu2.coralogix.com", "coralogix.us", "coralogix.in"],
+    )
+    api_key: str = Field(
+        title="API Key",
+        description="Coralogix API key (starts with cxuw_)",
+        examples=["cxuw_xxxxxxxxxxxx"],
+    )
+    team_slug: Optional[str] = Field(
+        default=None,
+        description="Your team's URL slug for generating UI permalinks",
+        examples=["my-team"],
+    )
+    labels: CoralogixLabelsConfig = Field(
+        default_factory=CoralogixLabelsConfig,
+        title="Labels",
+        description="Label mappings for log fields",
+    )
+
+    @model_validator(mode="after")
+    def handle_deprecated_fields(self):
+        """Handle backwards compatibility for renamed fields."""
+        extra = self.model_extra or {}
+        deprecated = []
+
+        # team_hostname was renamed to team_slug
+        if "team_hostname" in extra and not self.team_slug:
+            self.team_slug = extra["team_hostname"]
+            deprecated.append("team_hostname -> team_slug")
+
+        if deprecated:
+            logging.warning(f"Coralogix: deprecated config field names: {', '.join(deprecated)}")
+        return self
+
+
 def parse_json_lines(raw_text) -> List[Dict[str, Any]]:
-    """Parses JSON objects from a raw text response."""
+    """Parses JSON objects from a raw text response and removes duplicate userData fields from child objects."""
     json_objects = []
     for line in raw_text.strip().split("\n"):  # Split by newlines
         try:
-            json_objects.append(json.loads(line))
+            obj = json.loads(line)
+            if isinstance(obj, dict):
+                # Remove userData from top level
+                obj.pop("userData", None)
+                # Remove userData from direct child dicts (one level deep, no recursion)
+                for key, value in list(obj.items()):
+                    if isinstance(value, dict):
+                        value.pop("userData", None)
+                    elif isinstance(value, list):
+                        for item in value:
+                            if isinstance(item, dict):
+                                item.pop("userData", None)
+            json_objects.append(obj)
         except json.JSONDecodeError:
             logging.error(f"Failed to decode JSON from line: {line}")
     return json_objects
 
 
 def normalize_datetime(date_str: Optional[str]) -> str:
-    """takes a date string as input and attempts to convert it into a standardized ISO 8601 format with UTC timezone (“Z” suffix) and microsecond precision.
-    if any error occurs during parsing or formatting, it returns the original input string.
-    The method specifically handles older Python versions by removing a trailing “Z” and truncating microseconds to 6 digits before parsing.
-    """
     if not date_str:
         return "UNKNOWN_TIMESTAMP"
 
     try:
-        # older versions of python do not support `Z` appendix nor more than 6 digits of microsecond precision
         date_str_no_z = date_str.rstrip("Z")
 
         parts = date_str_no_z.split(".")
@@ -76,106 +133,3 @@ def normalize_datetime(date_str: Optional[str]) -> str:
         return normalized_date_time + "Z"
     except Exception:
         return date_str
-
-
-def flatten_structured_log_entries(
-    log_entries: List[Dict[str, Any]],
-) -> List[FlattenedLog]:
-    flattened_logs = []
-    for log_entry in log_entries:
-        try:
-            user_data = json.loads(log_entry.get("userData", "{}"))
-            timestamp = normalize_datetime(user_data.get("time"))
-            log_message = user_data.get("log", "")
-            if log_message:
-                flattened_logs.append(
-                    FlattenedLog(timestamp=timestamp, log_message=log_message)
-                )  # Store as tuple for sorting
-
-        except json.JSONDecodeError:
-            logging.error(
-                f"Failed to decode userData JSON: {log_entry.get('userData')}"
-            )
-    return flattened_logs
-
-
-def stringify_flattened_logs(log_entries: List[FlattenedLog]) -> str:
-    formatted_logs = []
-    for entry in log_entries:
-        formatted_logs.append(entry.log_message)
-
-    return "\n".join(formatted_logs) if formatted_logs else "No logs found."
-
-
-def parse_json_objects(json_objects: List[Dict[str, Any]]) -> List[FlattenedLog]:
-    """Extracts timestamp and log values from parsed JSON objects, sorted in ascending order (oldest first)."""
-    logs: List[FlattenedLog] = []
-
-    for data in json_objects:
-        if isinstance(data, dict) and "result" in data and "results" in data["result"]:
-            logs += flatten_structured_log_entries(
-                log_entries=data["result"]["results"]
-            )
-        elif isinstance(data, dict) and data.get("warning"):
-            logging.info(
-                f"Received the following warning when fetching coralogix logs: {data}"
-            )
-        else:
-            logging.debug(f"Unrecognised partial response from coralogix logs: {data}")
-
-    logs.sort(key=lambda x: x[0])
-
-    return logs
-
-
-def parse_logs(raw_logs: str) -> List[FlattenedLog]:
-    """Processes the HTTP response and extracts only log outputs."""
-    try:
-        json_objects = parse_json_lines(raw_logs)
-        if not json_objects:
-            raise Exception("No valid JSON objects found.")
-        return parse_json_objects(json_objects)
-    except Exception as e:
-        logging.error(
-            f"Unexpected error in format_logs for a coralogix API response: {str(e)}"
-        )
-        raise e
-
-
-def build_coralogix_link_to_logs(
-    config: CoralogixConfig, lucene_query: str, start: str, end: str
-) -> str:
-    query_param = urllib.parse.quote_plus(lucene_query)
-
-    return f"https://{config.team_hostname}.app.{config.domain}/#/query-new/logs?query={query_param}&querySyntax=dataprime&time=from:{start},to:{end}"
-
-
-def merge_log_results(
-    a: CoralogixQueryResult, b: CoralogixQueryResult
-) -> CoralogixQueryResult:
-    """
-    Merges two CoralogixQueryResult objects, deduplicating logs and sorting them by timestamp.
-
-    """
-    if a.error is None and b.error:
-        return a
-    elif b.error is None and a.error:
-        return b
-    elif a.error and b.error:
-        return a
-
-    combined_logs = a.logs + b.logs
-
-    if not combined_logs:
-        deduplicated_logs_set = set()
-    else:
-        deduplicated_logs_set = set(combined_logs)
-
-    # Assumes timestamps are in a format sortable as strings (e.g., ISO 8601)
-    sorted_logs = sorted(list(deduplicated_logs_set), key=lambda log: log.timestamp)
-
-    return CoralogixQueryResult(
-        logs=sorted_logs,
-        http_status=a.http_status if a.http_status is not None else b.http_status,
-        error=a.error,
-    )

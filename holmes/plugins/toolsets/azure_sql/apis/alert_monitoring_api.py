@@ -1,18 +1,10 @@
-from typing import Dict, List, Any
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List
 
-# Make Azure imports optional for local testing
-try:
-    from azure.core.credentials import TokenCredential
-    from azure.mgmt.monitor import MonitorManagementClient
-    from azure.mgmt.resource import ResourceManagementClient
-    AZURE_AVAILABLE = True
-except ImportError:
-    TokenCredential = None
-    MonitorManagementClient = None
-    ResourceManagementClient = None
-    AZURE_AVAILABLE = False
+from azure.core.credentials import TokenCredential
+from azure.mgmt.monitor import MonitorManagementClient
+from azure.mgmt.resource import ResourceManagementClient
 
 
 class AlertMonitoringAPI:
@@ -20,12 +12,9 @@ class AlertMonitoringAPI:
 
     def __init__(
         self,
-        credential,
+        credential: TokenCredential,
         subscription_id: str,
     ):
-        if not AZURE_AVAILABLE:
-            raise ImportError("Azure SDK is not available. Please install azure-mgmt-monitor and azure-mgmt-resource packages.")
-        
         self.credential = credential
         self.subscription_id = subscription_id
         self.monitor_client = MonitorManagementClient(credential, subscription_id)

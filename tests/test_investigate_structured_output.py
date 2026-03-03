@@ -1,11 +1,13 @@
-from typing import Any, Optional
-import pytest
 import json
+from typing import Any, Optional
+
+import pytest
+
 from holmes.core.investigation_structured_output import (
     DEFAULT_SECTIONS,
     get_output_format_for_investigation,
-    parse_json_sections,
     is_response_an_incorrect_tool_call,
+    parse_json_sections,
     process_response_into_sections,
 )
 from holmes.plugins.prompts import load_and_render_prompt
@@ -95,6 +97,11 @@ def test_get_output_format_for_investigation():
         ('{"invalid": json}', '{"invalid": json}', None),
         ([], "[]", None),
         ({}, "{}", None),
+        (
+            'text here long\n\n```json\n{\n  "section 1": "section 1 text",\n  "section 2": "section 2 text"\n}\n```\n\nanything else here',
+            "\n# section 1\nsection 1 text\n\n# section 2\nsection 2 text\n",
+            {"section 1": "section 1 text", "section 2": "section 2 text"},
+        ),
     ],
 )
 def test_parse_json_sections(

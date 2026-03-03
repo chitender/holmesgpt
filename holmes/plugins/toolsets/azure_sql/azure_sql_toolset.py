@@ -1,26 +1,23 @@
-import os
 import logging
+import os
 from typing import Any, Dict, Tuple, Union
 
-# Make Azure credential imports optional for local testing
-try:
-    from azure.identity import DefaultAzureCredential, ClientSecretCredential
-    AZURE_IDENTITY_AVAILABLE = True
-except ImportError:
-    DefaultAzureCredential = None
-    ClientSecretCredential = None
-    AZURE_IDENTITY_AVAILABLE = False
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 
 from holmes.core.tools import (
     CallablePrerequisite,
     ToolsetTag,
 )
 from holmes.plugins.toolsets.azure_sql.apis.azure_sql_api import AzureSQLAPIClient
-from holmes.plugins.toolsets.consts import TOOLSET_CONFIG_MISSING_ERROR
 from holmes.plugins.toolsets.azure_sql.azure_base_toolset import (
-    BaseAzureSQLToolset,
     AzureSQLConfig,
-    AzureSQLDatabaseConfig,
+    BaseAzureSQLToolset,
+)
+from holmes.plugins.toolsets.azure_sql.tools.analyze_connection_failures import (
+    AnalyzeConnectionFailures,
+)
+from holmes.plugins.toolsets.azure_sql.tools.analyze_database_connections import (
+    AnalyzeDatabaseConnections,
 )
 
 # Import all tool classes
@@ -30,24 +27,19 @@ from holmes.plugins.toolsets.azure_sql.tools.analyze_database_health_status impo
 from holmes.plugins.toolsets.azure_sql.tools.analyze_database_performance import (
     AnalyzeDatabasePerformance,
 )
-from holmes.plugins.toolsets.azure_sql.tools.analyze_database_connections import (
-    AnalyzeDatabaseConnections,
-)
 from holmes.plugins.toolsets.azure_sql.tools.analyze_database_storage import (
     AnalyzeDatabaseStorage,
 )
-from holmes.plugins.toolsets.azure_sql.tools.get_top_cpu_queries import GetTopCPUQueries
+from holmes.plugins.toolsets.azure_sql.tools.get_active_alerts import GetActiveAlerts
 from holmes.plugins.toolsets.azure_sql.tools.get_slow_queries import GetSlowQueries
+from holmes.plugins.toolsets.azure_sql.tools.get_top_cpu_queries import GetTopCPUQueries
 from holmes.plugins.toolsets.azure_sql.tools.get_top_data_io_queries import (
     GetTopDataIOQueries,
 )
 from holmes.plugins.toolsets.azure_sql.tools.get_top_log_io_queries import (
     GetTopLogIOQueries,
 )
-from holmes.plugins.toolsets.azure_sql.tools.get_active_alerts import GetActiveAlerts
-from holmes.plugins.toolsets.azure_sql.tools.analyze_connection_failures import (
-    AnalyzeConnectionFailures,
-)
+from holmes.plugins.toolsets.consts import TOOLSET_CONFIG_MISSING_ERROR
 
 
 class AzureSQLToolset(BaseAzureSQLToolset):
@@ -67,7 +59,6 @@ class AzureSQLToolset(BaseAzureSQLToolset):
             docs_url="https://kagi.com/proxy/png-clipart-microsoft-sql-server-microsoft-azure-sql-database-microsoft-text-logo-thumbnail.png?c=4Sg1bvcUGOrhnDzXgoBBa0G0j27ykgskX4a8cLrZp_quzqlpVGVG02OqQtezTxy7lB6ydmTKgbVAn_F7BxofxK6LKKUZSpjJ1huIAsXPVaXyakO4sWXFiX0Wz_8WjkA0AIlO_oFfW31AKaj5RcvGcr3siy0n5kW-GcqdpeBWsmm_huxUT6RycULFCDFBwuUzHvVl5TW3cYqlMxT8ecPZfg%3D%3D",
             icon_url="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Azure_SQL_Database_logo.svg/1200px-Azure_SQL_Database_logo.svg.png",
             tags=[ToolsetTag.CORE],
-            experimental=True,
             tools=[
                 AnalyzeDatabaseHealthStatus(self),
                 AnalyzeDatabasePerformance(self),
@@ -94,9 +85,6 @@ class AzureSQLToolset(BaseAzureSQLToolset):
             # Set up Azure credentials
             try:
                 credential: Union[ClientSecretCredential, DefaultAzureCredential]
-                if not AZURE_IDENTITY_AVAILABLE:
-                    raise ImportError("Azure Identity SDK is not available. Please install azure-identity package.")
-                
                 if (
                     azure_sql_config.tenant_id
                     and azure_sql_config.client_id
@@ -170,20 +158,6 @@ class AzureSQLToolset(BaseAzureSQLToolset):
         except Exception as e:
             logging.exception("Failed to set up Azure SQL toolset")
             return False, str(e)
-
-    def get_example_config(self) -> Dict[str, Any]:
-        example_config = AzureSQLConfig(
-            tenant_id="{{ env.AZURE_TENANT_ID }}",
-            client_id="{{ env.AZURE_CLIENT_ID }}",
-            client_secret="{{ env.AZURE_CLIENT_SECRET }}",
-            database=AzureSQLDatabaseConfig(
-                subscription_id="12345678-1234-1234-1234-123456789012",
-                resource_group="my-resource-group",
-                server_name="myserver",
-                database_name="mydatabase",
-            ),
-        )
-        return example_config.model_dump()
 
     def _reload_llm_instructions(self):
         """Load Azure SQL specific troubleshooting instructions."""

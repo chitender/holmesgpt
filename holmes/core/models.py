@@ -1,15 +1,105 @@
-from holmes.core.investigation_structured_output import InputSectionsDataType
-from holmes.core.tool_calling_llm import ToolCallResult
-from typing import Optional, List, Dict, Any, Union
-from pydantic import BaseModel, model_validator
+import json
 from enum import Enum
+from typing import Any, Dict, List, Optional, Union
+
+from pydantic import BaseModel, Field, model_validator
+
+from holmes.core.investigation_structured_output import InputSectionsDataType
+from holmes.core.tools import StructuredToolResult, StructuredToolResultStatus
+
+
+class TruncationMetadata(BaseModel):
+    tool_call_id: str
+    start_index: int
+    end_index: int
+    tool_name: str
+    original_token_count: int
+
+
+class TruncationResult(BaseModel):
+    truncated_messages: list[dict]
+    truncations: list[TruncationMetadata]
+
+
+class ToolCallResult(BaseModel):
+    tool_call_id: str
+    tool_name: str
+    description: str
+    result: StructuredToolResult
+    size: Optional[int] = None
+
+    def as_tool_call_message(self, extra_metadata: Optional[Dict[str, Any]] = None):
+        return {
+            "tool_call_id": self.tool_call_id,
+            "role": "tool",
+            "name": self.tool_name,
+            "content": format_tool_result_data(
+                tool_result=self.result,
+                tool_call_id=self.tool_call_id,
+                tool_name=self.tool_name,
+                extra_metadata=extra_metadata,
+            ),
+        }
+
+    def as_tool_result_response(self):
+        result_dump = self.result.model_dump()
+        result_dump["data"] = self.result.get_stringified_data()
+
+        return {
+            "tool_call_id": self.tool_call_id,
+            "tool_name": self.tool_name,
+            "description": self.description,
+            "role": "tool",
+            "result": result_dump,
+        }
+
+    def as_streaming_tool_result_response(self):
+        result_dump = self.result.model_dump()
+        result_dump["data"] = self.result.get_stringified_data()
+
+        return {
+            "tool_call_id": self.tool_call_id,
+            "role": "tool",
+            "description": self.description,
+            "name": self.tool_name,
+            "result": result_dump,
+        }
+
+
+def format_tool_result_data(
+    tool_result: StructuredToolResult,
+    tool_call_id: str,
+    tool_name: str,
+    extra_metadata: Optional[Dict[str, Any]] = None,
+) -> str:
+    tool_call_metadata: Dict[str, Any] = {}
+    if extra_metadata:
+        tool_call_metadata.update(extra_metadata)
+    # Required fields always take precedence
+    tool_call_metadata["tool_name"] = tool_name
+    tool_call_metadata["tool_call_id"] = tool_call_id
+    tool_response = f"tool_call_metadata={json.dumps(tool_call_metadata)}"
+
+    if tool_result.status == StructuredToolResultStatus.ERROR:
+        tool_response += f"{tool_result.error or 'Tool execution failed'}:\n\n"
+
+    tool_response += tool_result.get_stringified_data()
+
+    if tool_result.params:
+        tool_response = (
+            f"Params used for the tool call: {json.dumps(tool_result.params)}. The tool call output follows on the next line.\n"
+            + tool_response
+        )
+    return tool_response
 
 
 class InvestigationResult(BaseModel):
     analysis: Optional[str] = None
     sections: Optional[Dict[str, Union[str, None]]] = None
     tool_calls: List[ToolCallResult] = []
+    num_llm_calls: Optional[int] = None  # Number of LLM API calls (turns)
     instructions: List[str] = []
+    metadata: Optional[Dict[Any, Any]] = None
 
 
 class InvestigateRequest(BaseModel):
@@ -86,9 +176,35 @@ class ConversationRequest(BaseModel):
     include_tool_call_results: bool = False
 
 
+class PendingToolApproval(BaseModel):
+    """Represents a tool call that requires user approval."""
+
+    tool_call_id: str
+    tool_name: str
+    description: str
+    params: Dict[str, Any]
+
+
+class ToolApprovalDecision(BaseModel):
+    """Represents a user's decision on a tool approval."""
+
+    tool_call_id: str
+    approved: bool
+    save_prefixes: Optional[List[str]] = None  # Prefixes to remember for session
+
+
 class ChatRequestBaseModel(BaseModel):
     conversation_history: Optional[list[dict]] = None
     model: Optional[str] = None
+    stream: bool = Field(default=False)
+    enable_tool_approval: Optional[bool] = (
+        False  # Optional boolean for backwards compatibility
+    )
+    tool_decisions: Optional[List[ToolApprovalDecision]] = None
+    additional_system_prompt: Optional[str] = None
+    trace_span: Optional[Any] = (
+        None  # Optional span for tracing and heartbeat callbacks
+    )
 
     # In our setup with litellm, the first message in conversation_history
     # should follow the structure [{"role": "system", "content": ...}],
@@ -115,21 +231,27 @@ class IssueChatRequest(ChatRequestBaseModel):
     issue_type: str
 
 
-class WorkloadHealthRequest(BaseModel):
-    ask: str
-    resource: dict
-    alert_history_since_hours: float = 24
-    alert_history: bool = True
-    stored_instrucitons: bool = True
-    instructions: Optional[List[str]] = []
-    include_tool_calls: bool = False
-    include_tool_call_results: bool = False
-    prompt_template: str = "builtin://kubernetes_workload_ask.jinja2"
-    model: Optional[str] = None
-
-
 class ChatRequest(ChatRequestBaseModel):
     ask: str
+    images: Optional[List[Union[str, Dict[str, Any]]]] = Field(
+        default=None,
+        description=(
+            "List of images to analyze with vision-enabled models. Each item can be:\n"
+            "- A string: URL (https://...) or base64 data URI (data:image/jpeg;base64,...)\n"
+            "- A dict with keys:\n"
+            "  - url (required): URL or base64 data URI\n"
+            "  - detail (optional): 'low', 'high', or 'auto' (OpenAI-specific)\n"
+            "  - format (optional): MIME type like 'image/jpeg' (for providers that need it)"
+        ),
+    )
+    response_format: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Optional JSON schema for structured output. Format: {'type': 'json_schema', 'json_schema': {'name': 'ResultName', 'strict': true, 'schema': {...}}}",
+    )
+    behavior_controls: Optional[Dict[str, bool]] = Field(
+        default=None,
+        description="Override prompt components (e.g., {'todowrite_instructions': false}). Env var ENABLED_PROMPTS takes precedence.",
+    )
 
 
 class FollowUpAction(BaseModel):
@@ -144,14 +266,5 @@ class ChatResponse(BaseModel):
     conversation_history: list[dict]
     tool_calls: Optional[List[ToolCallResult]] = []
     follow_up_actions: Optional[List[FollowUpAction]] = []
-
-
-class WorkloadHealthInvestigationResult(BaseModel):
-    analysis: Optional[str] = None
-    tools: Optional[List[ToolCallConversationResult]] = []
-
-
-class WorkloadHealthChatRequest(ChatRequestBaseModel):
-    ask: str
-    workload_health_result: WorkloadHealthInvestigationResult
-    resource: dict
+    pending_approvals: Optional[List[PendingToolApproval]] = None
+    metadata: Optional[Dict[Any, Any]] = None

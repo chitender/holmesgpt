@@ -1,4 +1,5 @@
 import logging
+
 from holmes.core.tools import Toolset, ToolsetStatusEnum
 from holmes.plugins.toolsets.logging_utils.logging_api import BasePodLoggingToolset
 
@@ -16,12 +17,17 @@ def filter_out_default_logging_toolset(toolsets: list[Toolset]) -> list[Toolset]
     All other types of toolsets are included as is.
     """
 
-    logging_toolsets: list[BasePodLoggingToolset] = []
+    logging_toolsets: list[Toolset] = []
     final_toolsets: list[Toolset] = []
 
     for ts in toolsets:
+        toolset_type = (
+            ts.original_toolset_type
+            if hasattr(ts, "original_toolset_type")
+            else type(ts)
+        )
         if (
-            isinstance(ts, BasePodLoggingToolset)
+            issubclass(toolset_type, BasePodLoggingToolset)
             and ts.status == ToolsetStatusEnum.ENABLED
         ):
             logging_toolsets.append(ts)

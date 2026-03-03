@@ -1,30 +1,37 @@
-import os
 import logging
-from typing import Any, List, Optional, Tuple
+import os
+from typing import Any, ClassVar, List, Optional, Tuple, Type
+from urllib.parse import urljoin
 
-from pydantic import BaseModel
+from pydantic import Field
+from requests import RequestException  # type: ignore
+
 from holmes.core.tools import (
     CallablePrerequisite,
     StructuredToolResult,
+    StructuredToolResultStatus,
     Tool,
+    ToolInvokeContext,
     ToolParameter,
-    ToolResultStatus,
     Toolset,
     ToolsetTag,
 )
-from requests import RequestException  # type: ignore
-from urllib.parse import urljoin
-
 from holmes.plugins.toolsets.rabbitmq.api import (
     ClusterConnectionStatus,
     RabbitMQClusterConfig,
     get_cluster_status,
     make_request,
 )
+from holmes.plugins.toolsets.utils import toolset_name_for_one_liner
+from holmes.utils.pydantic_utils import ToolsetConfig, build_config_example
 
 
-class RabbitMQConfig(BaseModel):
-    clusters: List[RabbitMQClusterConfig]
+class RabbitMQConfig(ToolsetConfig):
+    clusters: List[RabbitMQClusterConfig] = Field(
+        title="Clusters",
+        description="List of RabbitMQ clusters to connect to",
+        examples=[[build_config_example(RabbitMQClusterConfig)]],
+    )
 
 
 class BaseRabbitMQTool(Tool):
@@ -62,25 +69,27 @@ class ListConfiguredClusters(BaseRabbitMQTool):
             toolset=toolset,
         )
 
-    def _invoke(self, params: Any) -> StructuredToolResult:
+    def _invoke(self, params: dict, context: ToolInvokeContext) -> StructuredToolResult:
         if not self.toolset.config:
             raise ValueError("RabbitMQ is not configured.")
 
         available_clusters = [
             {
                 "cluster_id": c.id,
-                "management_url": c.management_url,
+                "api_url": c.api_url,
                 "connection_status": c.connection_status,
             }
             for c in self.toolset.config.clusters
             if c.connection_status == ClusterConnectionStatus.SUCCESS
         ]
         return StructuredToolResult(
-            status=ToolResultStatus.SUCCESS, data=available_clusters
+            status=StructuredToolResultStatus.SUCCESS, data=available_clusters
         )
 
     def get_parameterized_one_liner(self, params) -> str:
-        return "list configured RabbitMQ clusters"
+        return (
+            f"{toolset_name_for_one_liner(self.toolset.name)}: List RabbitMQ Clusters"
+        )
 
 
 class GetRabbitMQClusterStatus(BaseRabbitMQTool):
@@ -98,33 +107,40 @@ class GetRabbitMQClusterStatus(BaseRabbitMQTool):
             toolset=toolset,
         )
 
-    def _invoke(self, params: Any) -> StructuredToolResult:
+    def _invoke(self, params: dict, context: ToolInvokeContext) -> StructuredToolResult:
         try:
             # Fetch node details which include partition info
             cluster_config = self._get_cluster_config(
                 cluster_id=params.get("cluster_id")
             )
             result = get_cluster_status(cluster_config)
-            return StructuredToolResult(status=ToolResultStatus.SUCCESS, data=result)
+            return StructuredToolResult(
+                status=StructuredToolResultStatus.SUCCESS, data=result
+            )
 
         except Exception as e:
             logging.info("Failed to process RabbitMQ cluster status", exc_info=True)
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Unexpected error fetching RabbitMQ cluster status: {str(e)}",
                 data=None,
             )
 
     def get_parameterized_one_liner(self, params) -> str:
-        return "get RabbitMQ cluster status and partition information"
+        cluster_id = params.get("cluster_id", "")
+        if cluster_id:
+            return f"{toolset_name_for_one_liner(self.toolset.name)}: Get Cluster Status ({cluster_id})"
+        return f"{toolset_name_for_one_liner(self.toolset.name)}: Get Cluster Status"
 
 
 class RabbitMQToolset(Toolset):
+    config_classes: ClassVar[list[Type[RabbitMQConfig]]] = [RabbitMQConfig]
+
     def __init__(self):
         super().__init__(
             name="rabbitmq/core",
             description="Provides tools to interact with RabbitMQ to diagnose cluster health, node status, and specifically network partitions (split-brain).",
-            docs_url="https://docs.robusta.dev/master/configuration/holmesgpt/toolsets/rabbitmq.html",
+            docs_url="https://holmesgpt.dev/data-sources/builtin-toolsets/rabbitmq/",
             icon_url="https://cdn.worldvectorlogo.com/logos/rabbitmq.svg",
             prerequisites=[CallablePrerequisite(callable=self.prerequisites_callable)],
             tools=[
@@ -151,13 +167,13 @@ class RabbitMQToolset(Toolset):
             if not env_url:
                 return (
                     False,
-                    "RabbitMQ toolset is misconfigured. 'management_url' is required.",
+                    "RabbitMQ toolset is misconfigured. 'api_url' is required.",
                 )
             config = {
                 "clusters": [
                     {
                         "id": "rabbitmq",
-                        "management_url": env_url,
+                        "api_url": env_url,
                         "username": env_user,
                         "password": env_pass,
                     }
@@ -175,7 +191,7 @@ class RabbitMQToolset(Toolset):
     def _check_clusters_config(self, config: RabbitMQConfig) -> Tuple[bool, str]:
         errors = []
         for cluster_config in config.clusters:
-            url = urljoin(cluster_config.management_url, "api/overview")
+            url = urljoin(cluster_config.api_url, "api/overview")
 
             try:
                 data = make_request(
@@ -208,15 +224,3 @@ class RabbitMQToolset(Toolset):
                 return (False, "\n".join([f"- {error}" for error in errors]))
         else:
             return (True, "")
-
-    def get_example_config(self):
-        example_config = RabbitMQConfig(
-            clusters=[
-                RabbitMQClusterConfig(
-                    management_url="http://<your-rabbitmq-server-or-service>:15672",
-                    username="holmes_user",
-                    password="holmes_password",
-                )
-            ]
-        )
-        return example_config.model_dump()

@@ -1,22 +1,26 @@
-import re
-import os
 import logging
-from typing import Any, Optional, Tuple, Dict, List
+import os
+import re
+from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type
 
+from pydantic import Field
+import requests  # type: ignore
+from bs4 import BeautifulSoup
+from markdownify import markdownify
 from requests import RequestException, Timeout  # type: ignore
+
 from holmes.core.tools import (
+    CallablePrerequisite,
+    StructuredToolResult,
+    StructuredToolResultStatus,
     Tool,
+    ToolInvokeContext,
     ToolParameter,
     Toolset,
     ToolsetTag,
-    CallablePrerequisite,
 )
-from markdownify import markdownify
-from bs4 import BeautifulSoup
-
-import requests  # type: ignore
-from holmes.core.tools import StructuredToolResult, ToolResultStatus
-
+from holmes.plugins.toolsets.utils import toolset_name_for_one_liner
+from holmes.utils.pydantic_utils import ToolsetConfig
 
 # TODO: change and make it holmes
 INTERNET_TOOLSET_USER_AGENT = os.environ.get(
@@ -24,7 +28,7 @@ INTERNET_TOOLSET_USER_AGENT = os.environ.get(
     "Mozilla/5.0 (X11; Linux x86_64; rv:128.0; holmesgpt;) Gecko/20100101 Firefox/128.0",
 )
 INTERNET_TOOLSET_TIMEOUT_SECONDS = int(
-    os.environ.get("INTERNET_TOOLSET_TIMEOUT_SECONDS", "60")
+    os.environ.get("INTERNET_TOOLSET_TIMEOUT_SECONDS", "5")
 )
 
 SELECTORS_TO_REMOVE = [
@@ -185,18 +189,18 @@ class FetchWebpage(Tool):
             toolset=toolset,  # type: ignore
         )
 
-    def _invoke(self, params: Any) -> StructuredToolResult:
+    def _invoke(self, params: dict, context: ToolInvokeContext) -> StructuredToolResult:
         url: str = params["url"]
 
         additional_headers = (
-            self.toolset.additional_headers if self.toolset.additional_headers else {}
+            self.toolset.internet_config.additional_headers if self.toolset.internet_config.additional_headers else {}
         )
         content, mime_type = scrape(url, additional_headers)
 
         if not content:
             logging.error(f"Failed to retrieve content from {url}")
             return StructuredToolResult(
-                status=ToolResultStatus.ERROR,
+                status=StructuredToolResultStatus.ERROR,
                 error=f"Failed to retrieve content from {url}",
                 params=params,
             )
@@ -208,18 +212,33 @@ class FetchWebpage(Tool):
             content = html_to_markdown(content)
 
         return StructuredToolResult(
-            status=ToolResultStatus.SUCCESS,
+            status=StructuredToolResultStatus.SUCCESS,
             data=content,
             params=params,
         )
 
     def get_parameterized_one_liner(self, params) -> str:
-        url: str = params["url"]
-        return f"fetched webpage {url}"
+        url: str = params.get("url", "<missing url>")
+        return f"{toolset_name_for_one_liner(self.toolset.name)}: Fetch Webpage {url}"
 
 
+class InternetBaseToolsetConfig(ToolsetConfig):
+    additional_headers: Dict[str, str] = Field(
+        default_factory=dict,
+        title="Headers",
+        description="Additional HTTP headers to include in requests",
+        examples=[
+            {},
+            {"Authorization": "Basic <base64_encoded_credentials>"},
+            {"Authorization": "Bearer <token>"},
+        ],
+    )
 class InternetBaseToolset(Toolset):
-    additional_headers: Dict[str, str] = {}
+    config_classes: ClassVar[list[Type[InternetBaseToolsetConfig]]] = [
+        InternetBaseToolsetConfig
+    ]
+    
+    internet_config: Optional[InternetBaseToolsetConfig] = None
 
     def __init__(
         self,
@@ -245,20 +264,14 @@ class InternetBaseToolset(Toolset):
         )
 
     def prerequisites_callable(self, config: Dict[str, Any]) -> Tuple[bool, str]:
-        if not config:
-            return True, ""
-        self.additional_headers = config.get("additional_headers", {})
+        try:
+            self.internet_config = InternetBaseToolsetConfig(**(config or {}))
+        except Exception as e:
+            return False, f"Failed to parse config: {e}"
         return True, ""
-
-    def get_example_config(self) -> Dict[str, Any]:
-        return {
-            "additional_headers": {"Authorization": "Basic <base_64_encoded_string>"}
-        }
 
 
 class InternetToolset(InternetBaseToolset):
-    additional_headers: Dict[str, str] = {}
-
     def __init__(self):
         super().__init__(
             name="internet",
@@ -267,7 +280,7 @@ class InternetToolset(InternetBaseToolset):
             tools=[
                 FetchWebpage(self),
             ],
-            docs_url="https://docs.robusta.dev/master/configuration/holmesgpt/toolsets/internet.html",
+            docs_url="https://holmesgpt.dev/data-sources/builtin-toolsets/internet/",
             tags=[
                 ToolsetTag.CORE,
             ],

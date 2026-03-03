@@ -1,44 +1,47 @@
-import json
 import logging
 import os
 import os.path
 from enum import Enum
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Union
 
+import sentry_sdk
 import yaml  # type: ignore
-from pydantic import BaseModel, ConfigDict, FilePath, SecretStr
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    FilePath,
+    PrivateAttr,
+    SecretStr,
+    model_validator,
+)
 
-from holmes import get_version  # type: ignore
-from holmes.clients.robusta_client import HolmesInfo, fetch_holmes_info
-from holmes.common.env_vars import ROBUSTA_AI, ROBUSTA_API_ENDPOINT, ROBUSTA_CONFIG_PATH
-from holmes.core.llm import LLM, DefaultLLM
-from holmes.core.runbooks import RunbookManager
-from holmes.core.supabase_dal import SupabaseDal
-from holmes.core.tool_calling_llm import IssueInvestigator, ToolCallingLLM
+from holmes.common.env_vars import ROBUSTA_CONFIG_PATH
+from holmes.core.llm import DefaultLLM, LLMModelRegistry
+from holmes.core.tools import Toolset
 from holmes.core.tools_utils.tool_executor import ToolExecutor
 from holmes.core.toolset_manager import ToolsetManager
-from holmes.plugins.destinations.slack import SlackDestination
 from holmes.plugins.runbooks import (
     RunbookCatalog,
-    load_builtin_runbooks,
     load_runbook_catalog,
-    load_runbooks_from_file,
 )
-from holmes.plugins.sources.github import GitHubSource
-from holmes.plugins.sources.jira import JiraServiceManagementSource, JiraSource
-from holmes.plugins.sources.opsgenie import OpsGenieSource
-from holmes.plugins.sources.pagerduty import PagerDutySource
-from holmes.plugins.sources.prometheus.plugin import AlertManagerSource
+
+# Source plugin imports moved to their respective create methods to speed up startup
+if TYPE_CHECKING:
+    from holmes.core.tool_calling_llm import IssueInvestigator, ToolCallingLLM
+    from holmes.plugins.destinations.slack import SlackDestination
+    from holmes.plugins.sources.github import GitHubSource
+    from holmes.plugins.sources.jira import JiraServiceManagementSource, JiraSource
+    from holmes.plugins.sources.opsgenie import OpsGenieSource
+    from holmes.plugins.sources.pagerduty import PagerDutySource
+    from holmes.plugins.sources.prometheus.plugin import AlertManagerSource
+
+from holmes.core.config import config_path_dir
+from holmes.core.supabase_dal import SupabaseDal
 from holmes.utils.definitions import RobustaConfig
-from holmes.utils.env import replace_env_vars_values
-from holmes.utils.file_utils import load_yaml_file
 from holmes.utils.pydantic_utils import RobustaBaseConfig, load_model_from_file
 
-DEFAULT_CONFIG_LOCATION = os.path.expanduser("~/.holmes/config.yaml")
-MODEL_LIST_FILE_LOCATION = os.environ.get(
-    "MODEL_LIST_FILE_LOCATION", "/etc/holmes/config/model_list.yaml"
-)
+DEFAULT_CONFIG_LOCATION = os.path.join(config_path_dir, "config.yaml")
 
 
 class SupportedTicketSources(str, Enum):
@@ -46,30 +49,15 @@ class SupportedTicketSources(str, Enum):
     PAGERDUTY = "pagerduty"
 
 
-def is_old_toolset_config(
-    toolsets: Union[dict[str, dict[str, Any]], List[dict[str, Any]]],
-) -> bool:
-    # old config is a list of toolsets
-    if isinstance(toolsets, list):
-        return True
-    return False
-
-
-def parse_models_file(path: str):
-    models = load_yaml_file(path, raise_error=False, warn_not_found=False)
-
-    for model, params in models.items():
-        params = replace_env_vars_values(params)
-
-    return models
-
-
 class Config(RobustaBaseConfig):
+    model: Optional[str] = None
     api_key: Optional[SecretStr] = (
         None  # if None, read from OPENAI_API_KEY or AZURE_OPENAI_ENDPOINT env var
     )
-    model: Optional[str] = "gpt-4o"
-    max_steps: int = 10
+    api_base: Optional[str] = None
+    api_version: Optional[str] = None
+    fast_model: Optional[str] = None
+    max_steps: int = 40
     cluster_name: Optional[str] = None
 
     alertmanager_url: Optional[str] = None
@@ -102,6 +90,7 @@ class Config(RobustaBaseConfig):
     opsgenie_query: Optional[str] = None
 
     custom_runbooks: List[FilePath] = []
+    custom_runbook_catalogs: List[Union[str, FilePath]] = []
 
     # custom_toolsets is passed from config file, and be used to override built-in toolsets, provides 'stable' customized toolset.
     # The status of custom toolsets can be cached.
@@ -109,58 +98,67 @@ class Config(RobustaBaseConfig):
     # custom_toolsets_from_cli is passed from CLI option `--custom-toolsets` as 'experimental' custom toolsets.
     # The status of toolset here won't be cached, so the toolset from cli will always be loaded when specified in the CLI.
     custom_toolsets_from_cli: Optional[List[FilePath]] = None
+    # if True, we will try to load the Robusta AI model, in cli we aren't trying to load it.
+    should_try_robusta_ai: bool = False
 
     toolsets: Optional[dict[str, dict[str, Any]]] = None
+    mcp_servers: Optional[dict[str, dict[str, Any]]] = None
+    additional_toolsets: Optional[List[Toolset]] = None
 
     _server_tool_executor: Optional[ToolExecutor] = None
+    _agui_tool_executor: Optional[ToolExecutor] = None
 
-    _version: Optional[str] = None
-    _holmes_info: Optional[HolmesInfo] = None
-
-    _toolset_manager: Optional[ToolsetManager] = None
-
-    @property
-    def is_latest_version(self) -> bool:
-        if (
-            not self._holmes_info
-            or not self._holmes_info.latest_version
-            or not self._version
-        ):
-            # We couldn't resolve version, assume we are running the latest version
-            return True
-        if self._version.startswith("dev-"):
-            # dev versions are considered to be the latest version
-            return True
-
-        return self._version.startswith(self._holmes_info.latest_version)
+    # TODO: Separate those fields to facade class, this shouldn't be part of the config.
+    _toolset_manager: Optional[ToolsetManager] = PrivateAttr(None)
+    _llm_model_registry: Optional[LLMModelRegistry] = PrivateAttr(None)
+    _dal: Optional[SupabaseDal] = PrivateAttr(None)
+    _config_file_path: Optional[Path] = PrivateAttr(None)
 
     @property
     def toolset_manager(self) -> ToolsetManager:
         if not self._toolset_manager:
             self._toolset_manager = ToolsetManager(
                 toolsets=self.toolsets,
+                mcp_servers=self.mcp_servers,
                 custom_toolsets=self.custom_toolsets,
                 custom_toolsets_from_cli=self.custom_toolsets_from_cli,
+                global_fast_model=self.fast_model,
+                custom_runbook_catalogs=self.custom_runbook_catalogs,
+                config_file_path=self._config_file_path,
+                additional_toolsets=self.additional_toolsets,
             )
         return self._toolset_manager
 
-    def model_post_init(self, __context: Any) -> None:
-        self._version = get_version()
-        self._holmes_info = fetch_holmes_info()
-        self._model_list = parse_models_file(MODEL_LIST_FILE_LOCATION)
-        if ROBUSTA_AI:
-            self._model_list["Robusta"] = {
-                "base_url": ROBUSTA_API_ENDPOINT,
-            }
+    @property
+    def dal(self) -> SupabaseDal:
+        if not self._dal:
+            self._dal = SupabaseDal(self.cluster_name)  # type: ignore
+        return self._dal
+
+    @property
+    def llm_model_registry(self) -> LLMModelRegistry:
+        if not self._llm_model_registry:
+            self._llm_model_registry = LLMModelRegistry(self, dal=self.dal)
+        return self._llm_model_registry
+
+    @model_validator(mode="after")
+    def _warn_deprecated_custom_runbooks(self) -> "Config":
+        if self.custom_runbooks:
+            logging.warning(
+                "The 'custom_runbooks' config field is deprecated. "
+                "HolmesGPT now uses a more powerful catalog-based runbook system where the LLM can intelligently "
+                "fetch relevant runbooks on-demand. Please remove 'custom_runbooks' from your config file "
+                "(~/.holmes/config.yaml) and use 'custom_runbook_catalogs' instead to specify runbook catalog files."
+            )
+        return self
 
     def log_useful_info(self):
-        if self._model_list:
-            logging.info(f"loaded models: {list(self._model_list.keys())}")
-
-        if not self.is_latest_version and self._holmes_info:
-            logging.warning(
-                f"You are running version {self._version} of holmes, but the latest version is {self._holmes_info.latest_version}. Please update.",
+        if self.llm_model_registry.models:
+            logging.info(
+                f"Loaded models: {list(self.llm_model_registry.models.keys())}"
             )
+        else:
+            logging.warning("No llm models were loaded")
 
     @classmethod
     def load_from_file(cls, config_file: Optional[Path], **kwargs) -> "Config":
@@ -174,6 +172,7 @@ class Config(RobustaBaseConfig):
         Returns:
             Config instance with merged settings
         """
+
         config_from_file: Optional[Config] = None
         if config_file is not None and config_file.exists():
             logging.debug(f"Loading config from {config_file}")
@@ -189,6 +188,9 @@ class Config(RobustaBaseConfig):
             merged_config.update(cli_options)
             result = cls(**merged_config)
 
+        if config_file is not None and config_file.exists():
+            result._config_file_path = config_file
+
         result.log_useful_info()
         return result
 
@@ -197,7 +199,10 @@ class Config(RobustaBaseConfig):
         kwargs = {}
         for field_name in [
             "model",
+            "fast_model",
             "api_key",
+            "api_base",
+            "api_version",
             "max_steps",
             "alertmanager_url",
             "alertmanager_username",
@@ -220,6 +225,7 @@ class Config(RobustaBaseConfig):
             if val is not None:
                 kwargs[field_name] = val
         kwargs["cluster_name"] = Config.__get_cluster_name()
+        kwargs["should_try_robusta_ai"] = True
         result = cls(**kwargs)
         result.log_useful_info()
         return result
@@ -243,14 +249,14 @@ class Config(RobustaBaseConfig):
 
         return None
 
-    @staticmethod
-    def get_runbook_catalog() -> Optional[RunbookCatalog]:
-        # TODO(mainred): besides the built-in runbooks, we need to allow the user to bring their own runbooks
-        runbook_catalog = load_runbook_catalog()
+    def get_runbook_catalog(self) -> Optional[RunbookCatalog]:
+        runbook_catalog = load_runbook_catalog(
+            dal=self.dal, custom_catalog_paths=self.custom_runbook_catalogs
+        )
         return runbook_catalog
 
     def create_console_tool_executor(
-        self, dal: Optional[SupabaseDal], refresh_status: bool = False
+        self, dal: Optional["SupabaseDal"], refresh_status: bool = False
     ) -> ToolExecutor:
         """
         Creates a ToolExecutor instance configured for CLI usage. This executor manages the available tools
@@ -266,7 +272,24 @@ class Config(RobustaBaseConfig):
         )
         return ToolExecutor(cli_toolsets)
 
-    def create_tool_executor(self, dal: Optional[SupabaseDal]) -> ToolExecutor:
+    def create_agui_tool_executor(self, dal: Optional["SupabaseDal"]) -> ToolExecutor:
+        """
+        Creates ToolExecutor for the AG-UI server endpoints
+        """
+
+        if self._agui_tool_executor:
+            return self._agui_tool_executor
+
+        # Use same toolset as CLI for AG-UI front-end.
+        agui_toolsets = self.toolset_manager.list_console_toolsets(
+            dal=dal, refresh_status=True
+        )
+
+        self._agui_tool_executor = ToolExecutor(agui_toolsets)
+
+        return self._agui_tool_executor
+
+    def create_tool_executor(self, dal: Optional["SupabaseDal"]) -> ToolExecutor:
         """
         Creates ToolExecutor for the server endpoints
         """
@@ -284,42 +307,110 @@ class Config(RobustaBaseConfig):
 
         return self._server_tool_executor
 
+    def refresh_server_tool_executor(
+        self, dal: Optional["SupabaseDal"]
+    ) -> list[tuple[str, str, str]]:
+        if not self._server_tool_executor:
+            self.create_tool_executor(dal)
+            return []
+
+        current_toolsets = self._server_tool_executor.toolsets
+        new_toolsets, changes = (
+            self.toolset_manager.refresh_server_toolsets_and_get_changes(
+                current_toolsets, dal
+            )
+        )
+
+        if changes:
+            self._server_tool_executor = ToolExecutor(new_toolsets)
+
+        return [(name, old.value, new.value) for name, old, new in changes]
+
     def create_console_toolcalling_llm(
-        self, dal: Optional[SupabaseDal] = None, refresh_toolsets: bool = False
-    ) -> ToolCallingLLM:
+        self,
+        dal: Optional["SupabaseDal"] = None,
+        refresh_toolsets: bool = False,
+        tracer=None,
+        model_name: Optional[str] = None,
+        tool_results_dir: Optional[Path] = None,
+    ) -> "ToolCallingLLM":
         tool_executor = self.create_console_tool_executor(dal, refresh_toolsets)
-        return ToolCallingLLM(tool_executor, self.max_steps, self._get_llm())
+        from holmes.core.tool_calling_llm import ToolCallingLLM
+
+        return ToolCallingLLM(
+            tool_executor,
+            self.max_steps,
+            self._get_llm(tracer=tracer, model_key=model_name),
+            tool_results_dir=tool_results_dir,
+        )
+
+    def create_agui_toolcalling_llm(
+        self,
+        dal: Optional["SupabaseDal"] = None,
+        model: Optional[str] = None,
+        tracer=None,
+        tool_results_dir: Optional[Path] = None,
+    ) -> "ToolCallingLLM":
+        tool_executor = self.create_agui_tool_executor(dal)
+        from holmes.core.tool_calling_llm import ToolCallingLLM
+
+        return ToolCallingLLM(
+            tool_executor,
+            self.max_steps,
+            self._get_llm(model, tracer),
+            tool_results_dir=tool_results_dir,
+        )
 
     def create_toolcalling_llm(
-        self, dal: Optional[SupabaseDal] = None, model: Optional[str] = None
-    ) -> ToolCallingLLM:
+        self,
+        dal: Optional["SupabaseDal"] = None,
+        model: Optional[str] = None,
+        tracer=None,
+        tool_results_dir: Optional[Path] = None,
+    ) -> "ToolCallingLLM":
         tool_executor = self.create_tool_executor(dal)
-        return ToolCallingLLM(tool_executor, self.max_steps, self._get_llm(model))
+        from holmes.core.tool_calling_llm import ToolCallingLLM
+
+        return ToolCallingLLM(
+            tool_executor,
+            self.max_steps,
+            self._get_llm(model, tracer),
+            tool_results_dir=tool_results_dir,
+        )
 
     def create_issue_investigator(
-        self, dal: Optional[SupabaseDal] = None, model: Optional[str] = None
-    ) -> IssueInvestigator:
-        all_runbooks = load_builtin_runbooks()
-        for runbook_path in self.custom_runbooks:
-            all_runbooks.extend(load_runbooks_from_file(runbook_path))
-
-        runbook_manager = RunbookManager(all_runbooks)
+        self,
+        dal: Optional["SupabaseDal"] = None,
+        model: Optional[str] = None,
+        tracer=None,
+        tool_results_dir: Optional[Path] = None,
+    ) -> "IssueInvestigator":
         tool_executor = self.create_tool_executor(dal)
+        from holmes.core.tool_calling_llm import IssueInvestigator
+
         return IssueInvestigator(
-            tool_executor, runbook_manager, self.max_steps, self._get_llm(model)
+            tool_executor=tool_executor,
+            max_steps=self.max_steps,
+            llm=self._get_llm(model, tracer),
+            tool_results_dir=tool_results_dir,
+            cluster_name=self.cluster_name,
         )
 
     def create_console_issue_investigator(
-        self, dal: Optional[SupabaseDal] = None
-    ) -> IssueInvestigator:
-        all_runbooks = load_builtin_runbooks()
-        for runbook_path in self.custom_runbooks:
-            all_runbooks.extend(load_runbooks_from_file(runbook_path))
-
-        runbook_manager = RunbookManager(all_runbooks)
+        self,
+        dal: Optional["SupabaseDal"] = None,
+        model_name: Optional[str] = None,
+        tool_results_dir: Optional[Path] = None,
+    ) -> "IssueInvestigator":
         tool_executor = self.create_console_tool_executor(dal=dal)
+        from holmes.core.tool_calling_llm import IssueInvestigator
+
         return IssueInvestigator(
-            tool_executor, runbook_manager, self.max_steps, self._get_llm()
+            tool_executor=tool_executor,
+            max_steps=self.max_steps,
+            llm=self._get_llm(model_key=model_name),
+            tool_results_dir=tool_results_dir,
+            cluster_name=self.cluster_name,
         )
 
     def validate_jira_config(self):
@@ -334,7 +425,9 @@ class Config(RobustaBaseConfig):
         if self.jira_api_key is None:
             raise ValueError("--jira-api-key must be specified")
 
-    def create_jira_source(self) -> JiraSource:
+    def create_jira_source(self) -> "JiraSource":
+        from holmes.plugins.sources.jira import JiraSource
+
         self.validate_jira_config()
 
         return JiraSource(
@@ -344,7 +437,9 @@ class Config(RobustaBaseConfig):
             jql_query=self.jira_query,  # type: ignore
         )
 
-    def create_jira_service_management_source(self) -> JiraServiceManagementSource:
+    def create_jira_service_management_source(self) -> "JiraServiceManagementSource":
+        from holmes.plugins.sources.jira import JiraServiceManagementSource
+
         self.validate_jira_config()
 
         return JiraServiceManagementSource(
@@ -354,7 +449,9 @@ class Config(RobustaBaseConfig):
             jql_query=self.jira_query,  # type: ignore
         )
 
-    def create_github_source(self) -> GitHubSource:
+    def create_github_source(self) -> "GitHubSource":
+        from holmes.plugins.sources.github import GitHubSource
+
         if not self.github_url or not (
             self.github_url.startswith("http://")
             or self.github_url.startswith("https://")
@@ -375,7 +472,9 @@ class Config(RobustaBaseConfig):
             query=self.github_query,
         )
 
-    def create_pagerduty_source(self) -> PagerDutySource:
+    def create_pagerduty_source(self) -> "PagerDutySource":
+        from holmes.plugins.sources.pagerduty import PagerDutySource
+
         if self.pagerduty_api_key is None:
             raise ValueError("--pagerduty-api-key must be specified")
 
@@ -385,7 +484,9 @@ class Config(RobustaBaseConfig):
             incident_key=self.pagerduty_incident_key,
         )
 
-    def create_opsgenie_source(self) -> OpsGenieSource:
+    def create_opsgenie_source(self) -> "OpsGenieSource":
+        from holmes.plugins.sources.opsgenie import OpsGenieSource
+
         if self.opsgenie_api_key is None:
             raise ValueError("--opsgenie-api-key must be specified")
 
@@ -399,7 +500,9 @@ class Config(RobustaBaseConfig):
             ),
         )
 
-    def create_alertmanager_source(self) -> AlertManagerSource:
+    def create_alertmanager_source(self) -> "AlertManagerSource":
+        from holmes.plugins.sources.prometheus.plugin import AlertManagerSource
+
         return AlertManagerSource(
             url=self.alertmanager_url,  # type: ignore
             username=self.alertmanager_username,
@@ -408,40 +511,68 @@ class Config(RobustaBaseConfig):
             filepath=self.alertmanager_file,
         )
 
-    def create_slack_destination(self):
+    def create_slack_destination(self) -> "SlackDestination":
+        from holmes.plugins.destinations.slack import SlackDestination
+
         if self.slack_token is None:
             raise ValueError("--slack-token must be specified")
         if self.slack_channel is None:
             raise ValueError("--slack-channel must be specified")
         return SlackDestination(self.slack_token.get_secret_value(), self.slack_channel)
 
-    def _get_llm(self, model_key: Optional[str] = None) -> LLM:
-        api_key = self.api_key.get_secret_value() if self.api_key else None
-        model = self.model
-        model_params = {}
-        if self._model_list:
-            # get requested model or the first credentials if no model requested.
-            model_params = (
-                self._model_list.get(model_key, {}).copy()
-                if model_key
-                else next(iter(self._model_list.values())).copy()
-            )
-            api_key = model_params.pop("api_key", api_key)
-            model = model_params.pop("model", model)
+    # TODO: move this to the llm model registry
+    def _get_llm(self, model_key: Optional[str] = None, tracer=None) -> "DefaultLLM":
+        sentry_sdk.set_tag("requested_model", model_key)
+        model_entry = self.llm_model_registry.get_model_params(model_key)
+        model_params = model_entry.model_dump(exclude_none=True)
+        api_base = self.api_base
+        api_version = self.api_version
+        is_robusta_model = model_params.pop("is_robusta_model", False)
+        sentry_sdk.set_tag("is_robusta_model", is_robusta_model)
+        if is_robusta_model:
+            # we set here the api_key since it is being refresh when exprided and not as part of the model loading.
+            account_id, token = self.dal.get_ai_credentials()
+            api_key = f"{account_id} {token}"
+        else:
+            api_key = model_params.pop("api_key", None)
+            if api_key is not None:
+                api_key = api_key.get_secret_value()
 
-        return DefaultLLM(model, api_key, model_params)  # type: ignore
+        model = model_params.pop("model")
+        # It's ok if the model does not have api base and api version, which are defaults to None.
+        # Handle both api_base and base_url - api_base takes precedence
+        model_api_base = model_params.pop("api_base", None)
+        model_base_url = model_params.pop("base_url", None)
+        api_base = model_api_base or model_base_url or api_base
+        api_version = model_params.pop("api_version", api_version)
+        model_name = model_params.pop("name", None) or model_key or model
+        sentry_sdk.set_tag("model_name", model_name)
+        llm = DefaultLLM(
+            model=model,
+            api_key=api_key,
+            api_base=api_base,
+            api_version=api_version,
+            args=model_params,
+            tracer=tracer,
+            name=model_name,
+            is_robusta_model=is_robusta_model,
+        )  # type: ignore
+        logging.info(
+            f"Using model: {model_name} ({llm.get_context_window_size():,} total tokens, {llm.get_maximum_output_token():,} output tokens)"
+        )
+        return llm
 
     def get_models_list(self) -> List[str]:
-        if self._model_list:
-            return json.dumps(list(self._model_list.keys()))  # type: ignore
+        if self.llm_model_registry and self.llm_model_registry.models:
+            return list(self.llm_model_registry.models.keys())
 
-        return json.dumps([self.model])  # type: ignore
+        return []
 
 
 class TicketSource(BaseModel):
     config: Config
     output_instructions: list[str]
-    source: Union[JiraServiceManagementSource, PagerDutySource]
+    source: Union["JiraServiceManagementSource", "PagerDutySource"]
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
