@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import re
+import time
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -554,7 +555,17 @@ class FetchTraces(Tool):
             logger.info(f"Fetching traces for cluster: {kube_cluster_name}")
             logger.info(f"Duration filter: {duration_secs} seconds")
             logger.info(f"Request URL: {url}")
-            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            logger.info(f"Request headers: {[k for k in headers.keys()]}")
+            # Check for proxy env vars that could cause delays
+            http_proxy = os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy")
+            no_proxy = os.environ.get("NO_PROXY") or os.environ.get("no_proxy")
+            if http_proxy:
+                logger.warning(f"⚠️ HTTP_PROXY is set: {http_proxy} (NO_PROXY: {no_proxy})")
+            t0 = time.time()
+            # Use (connect_timeout, read_timeout) to separate connection vs data wait
+            response = requests.post(url, headers=headers, json=payload, timeout=(10, 120))
+            elapsed = time.time() - t0
+            logger.info(f"✅ kfuse response received in {elapsed:.2f}s (status: {response.status_code}, size: {len(response.content)} bytes)")
             response.raise_for_status()
             result = response.json()
 
@@ -749,7 +760,10 @@ class FetchServiceTraces(Tool):
             logger.info(f"Cluster: {kube_cluster_name}")
             logger.info(f"Duration filter: {duration_secs} seconds")
             logger.info(f"Request URL: {url}")
-            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            t0 = time.time()
+            response = requests.post(url, headers=headers, json=payload, timeout=(10, 120))
+            elapsed = time.time() - t0
+            logger.info(f"✅ kfuse response received in {elapsed:.2f}s (status: {response.status_code}, size: {len(response.content)} bytes)")
             response.raise_for_status()
             result = response.json()
 
@@ -889,6 +903,10 @@ class AnalyzeTraceRCA(Tool):
             logger.info(f"Analyzing trace: {trace_id}")
             logger.info(f"Timestamp: {timestamp}")
             logger.info(f"Request URL: {url}")
+            # Check for proxy env vars
+            http_proxy = os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy")
+            if http_proxy:
+                logger.warning(f"⚠️ HTTP_PROXY is set: {http_proxy}")
 
             # Generate current timestamp in ISO 8601 format with timezone offset
             current_timestamp = datetime.now().astimezone().isoformat()
@@ -939,7 +957,7 @@ class AnalyzeTraceRCA(Tool):
 
             try:
                 response_trace = requests.post(
-                    url, headers=headers, json=payload, timeout=60
+                    url, headers=headers, json=payload, timeout=(10, 120)
                 )
                 response_trace.raise_for_status()
                 trace_details = response_trace.json()
@@ -1057,7 +1075,7 @@ class AnalyzeTraceRCA(Tool):
 
             try:
                 response_span = requests.post(
-                    url, headers=headers, json=payload, timeout=60
+                    url, headers=headers, json=payload, timeout=(10, 120)
                 )
                 response_span.raise_for_status()
                 span_details = response_span.json()
@@ -1118,7 +1136,7 @@ class AnalyzeTraceRCA(Tool):
 
                 try:
                     response_metrics = requests.post(
-                        url, headers=headers, json=payload, timeout=60
+                        url, headers=headers, json=payload, timeout=(10, 120)
                     )
                     response_metrics.raise_for_status()
                     metrics_details = response_metrics.json()
