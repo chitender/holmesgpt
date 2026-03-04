@@ -43,6 +43,10 @@ class PromptParser:
             r'kubernetes_cluster[:\s]+["\']?([a-zA-Z0-9\-_]+)["\']?',
             r'cluster\s+name\s*(?:is\s*)?["\']?([a-zA-Z0-9\-_]+)["\']?',
             r'clustername[:\s]+["\']?([a-zA-Z0-9\-_]+)["\']?',
+            # "cluster <name>" pattern (high priority - matches "cluster dock-university-new")
+            r"(?:instance|cluster|service)\s+([a-zA-Z0-9\-_]+)",
+            # "for cluster <name>" pattern
+            r"(?:for|in|from)\s+cluster\s+([a-zA-Z0-9\-_]+)",
             # Direct mentions with service types
             r"([a-zA-Z0-9\-_]+)\s+kubernetes(?:\s+cluster)?",
             r"([a-zA-Z0-9\-_]+)\s+k8s(?:\s+cluster)?",
@@ -57,25 +61,24 @@ class PromptParser:
             # Generic patterns (lower priority)
             r"(?:in|from)\s+([a-zA-Z0-9\-_]+)\s+cluster",
             r"([a-zA-Z0-9\-_]+)\s+cluster",
-            r"(?:instance|cluster|service)\s+([a-zA-Z0-9\-_]+)",
             r"([a-zA-Z0-9\-_]{3,})(?:\s+(?:instance|cluster|service))",
         ]
+
+        # Common words that should never be extracted as cluster names
+        false_positives = {
+            "kubernetes", "k8s", "cluster", "instance", "service",
+            "in", "from", "my", "for", "the", "a", "an",
+            "get", "show", "fetch", "display", "retrieve", "list",
+            "traces", "trace", "logs", "log", "apm", "kfuse",
+            "top", "slowest", "fastest", "last", "recent",
+        }
 
         for pattern in patterns:
             match = re.search(pattern, prompt, re.IGNORECASE)
             if match:
                 extracted = match.group(1)
                 # Skip common false positives
-                if extracted.lower() in [
-                    "kubernetes",
-                    "k8s",
-                    "cluster",
-                    "instance",
-                    "service",
-                    "in",
-                    "from",
-                    "my",
-                ]:
+                if extracted.lower() in false_positives:
                     continue
                 return extracted
 
@@ -522,7 +525,8 @@ class FetchTraces(Tool):
 
             logger.info(f"Fetching traces for cluster: {kube_cluster_name}")
             logger.info(f"Duration filter: {duration_secs} seconds")
-            response = requests.post(url, headers=headers, json=payload, timeout=300)
+            logger.info(f"Request URL: {url}")
+            response = requests.post(url, headers=headers, json=payload, timeout=60)
             response.raise_for_status()
             result = response.json()
 
@@ -725,7 +729,8 @@ class FetchServiceTraces(Tool):
             logger.info(f"Namespace: {namespace}")
             logger.info(f"Cluster: {kube_cluster_name}")
             logger.info(f"Duration filter: {duration_secs} seconds")
-            response = requests.post(url, headers=headers, json=payload, timeout=300)
+            logger.info(f"Request URL: {url}")
+            response = requests.post(url, headers=headers, json=payload, timeout=60)
             response.raise_for_status()
             result = response.json()
 
@@ -873,6 +878,7 @@ class AnalyzeTraceRCA(Tool):
 
             logger.info(f"Analyzing trace: {trace_id}")
             logger.info(f"Timestamp: {timestamp}")
+            logger.info(f"Request URL: {url}")
 
             # Generate current timestamp in ISO 8601 format with timezone offset
             current_timestamp = datetime.now().astimezone().isoformat()
@@ -923,7 +929,7 @@ class AnalyzeTraceRCA(Tool):
 
             try:
                 response_trace = requests.post(
-                    url, headers=headers, json=payload, timeout=300
+                    url, headers=headers, json=payload, timeout=60
                 )
                 response_trace.raise_for_status()
                 trace_details = response_trace.json()
@@ -1041,7 +1047,7 @@ class AnalyzeTraceRCA(Tool):
 
             try:
                 response_span = requests.post(
-                    url, headers=headers, json=payload, timeout=300
+                    url, headers=headers, json=payload, timeout=60
                 )
                 response_span.raise_for_status()
                 span_details = response_span.json()
@@ -1102,7 +1108,7 @@ class AnalyzeTraceRCA(Tool):
 
                 try:
                     response_metrics = requests.post(
-                        url, headers=headers, json=payload, timeout=300
+                        url, headers=headers, json=payload, timeout=60
                     )
                     response_metrics.raise_for_status()
                     metrics_details = response_metrics.json()
