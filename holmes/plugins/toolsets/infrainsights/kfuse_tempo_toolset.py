@@ -366,6 +366,43 @@ class PromptParser:
         }
 
 
+def _build_kfuse_headers(config: Dict[str, Any]) -> Dict[str, str]:
+    """Build HTTP headers for kfuse API requests including all auth headers.
+
+    Supports Bearer token, Basic auth, and kfuse-specific auth headers:
+    - X-Auth-Request-User
+    - X-Auth-Request-Email
+    - X-Auth-Request-Role
+    - X-Auth-Request-Effective-Policies
+    """
+    headers: Dict[str, str] = {"Content-Type": "application/json"}
+
+    # Authorization header (Bearer takes priority over Basic)
+    bearer_token = config.get("bearer_token")
+    basic_auth_token = config.get("basic_auth_token")
+    if bearer_token:
+        headers["Authorization"] = f"Bearer {bearer_token}"
+    elif basic_auth_token:
+        headers["Authorization"] = f"Basic {basic_auth_token}"
+
+    # Kfuse auth headers
+    auth_user = config.get("auth_user")
+    auth_email = config.get("auth_email")
+    auth_role = config.get("auth_role")
+    auth_effective_policies = config.get("auth_effective_policies")
+
+    if auth_user:
+        headers["X-Auth-Request-User"] = auth_user
+    if auth_email:
+        headers["X-Auth-Request-Email"] = auth_email
+    if auth_role:
+        headers["X-Auth-Request-Role"] = auth_role
+    if auth_effective_policies:
+        headers["X-Auth-Request-Effective-Policies"] = auth_effective_policies
+
+    return headers
+
+
 # Define the tool that fetches traces for all services running in a Kubernetes cluster
 class FetchTraces(Tool):
     """Tool to fetch APM traces for all services in Kubernetes cluster"""
@@ -512,16 +549,7 @@ class FetchTraces(Tool):
 
             # Construct the API endpoint URL
             url = f"http://{tempo_url}:8080/v1/trace/query"
-            headers = {"Content-Type": "application/json"}
-            bearer_token = self.toolset.config.get("bearer_token")
-            basic_auth_token = self.toolset.config.get("basic_auth_token")
-            auth_user = self.toolset.config.get("auth_user")
-            if bearer_token:
-                headers["Authorization"] = f"Bearer {bearer_token}"
-            elif basic_auth_token:
-                headers["Authorization"] = f"Basic {basic_auth_token}"
-            if auth_user:
-                headers["X-Auth-Request-User"] = auth_user
+            headers = _build_kfuse_headers(self.toolset.config)
 
             logger.info(f"Fetching traces for cluster: {kube_cluster_name}")
             logger.info(f"Duration filter: {duration_secs} seconds")
@@ -714,16 +742,7 @@ class FetchServiceTraces(Tool):
 
             # Construct the API endpoint URL
             url = f"http://{tempo_url}:8080/v1/trace/query"
-            headers = {"Content-Type": "application/json"}
-            bearer_token = self.toolset.config.get("bearer_token")
-            basic_auth_token = self.toolset.config.get("basic_auth_token")
-            auth_user = self.toolset.config.get("auth_user")
-            if bearer_token:
-                headers["Authorization"] = f"Bearer {bearer_token}"
-            elif basic_auth_token:
-                headers["Authorization"] = f"Basic {basic_auth_token}"
-            if auth_user:
-                headers["X-Auth-Request-User"] = auth_user
+            headers = _build_kfuse_headers(self.toolset.config)
 
             logger.info(f"Fetching traces for service: {service_name}")
             logger.info(f"Namespace: {namespace}")
@@ -864,16 +883,7 @@ class AnalyzeTraceRCA(Tool):
                     params=params,
                 )
 
-            headers = {"Content-Type": "application/json"}
-            bearer_token = self.toolset.config.get("bearer_token")
-            basic_auth_token = self.toolset.config.get("basic_auth_token")
-            auth_user = self.toolset.config.get("auth_user")
-            if bearer_token:
-                headers["Authorization"] = f"Bearer {bearer_token}"
-            elif basic_auth_token:
-                headers["Authorization"] = f"Basic {basic_auth_token}"
-            if auth_user:
-                headers["X-Auth-Request-User"] = auth_user
+            headers = _build_kfuse_headers(self.toolset.config)
             url = f"http://{tempo_url}:8080/v1/trace/query"
 
             logger.info(f"Analyzing trace: {trace_id}")
@@ -1263,5 +1273,8 @@ class KfuseTempoToolset(Toolset):
             "kube_cluster_name": "your-cluster-name",
             "bearer_token": "your-bearer-token",
             "basic_auth_token": "base64-encoded-token",
-            "auth_user": "your-user",
+            "auth_user": "your-user@example.com",
+            "auth_email": "your-user@example.com",
+            "auth_role": "Admin",
+            "auth_effective_policies": "",
         }
