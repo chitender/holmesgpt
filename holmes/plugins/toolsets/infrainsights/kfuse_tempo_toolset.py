@@ -1260,7 +1260,15 @@ class KfuseTempoToolset(Toolset):
         return True, ""
 
     def configure(self, cfg: Dict[str, Any]) -> None:
-        self.config = cfg or {}
+        cfg = cfg or {}
+        # Handle nested config structure: { "enabled": true, "config": { "tempo_url": ... } }
+        if isinstance(cfg, dict) and "config" in cfg and isinstance(cfg["config"], dict):
+            logger.info(f"🔧 KfuseTempoToolset: Using nested config structure")
+            self.config = cfg["config"]
+        else:
+            logger.info(f"🔧 KfuseTempoToolset: Using flat config structure")
+            self.config = cfg
+        logger.info(f"🔧 KfuseTempoToolset config keys: {list(self.config.keys())}")
         ok, msg = self._prereq_check({})
         if not ok:
             raise ValueError(msg)
