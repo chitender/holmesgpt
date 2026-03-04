@@ -510,10 +510,13 @@ class FetchTraces(Tool):
             # Construct the API endpoint URL
             url = f"http://{tempo_url}:8080/v1/trace/query"
             headers = {"Content-Type": "application/json"}
-            token = self.toolset.config.get("basic_auth_token")
+            bearer_token = self.toolset.config.get("bearer_token")
+            basic_auth_token = self.toolset.config.get("basic_auth_token")
             auth_user = self.toolset.config.get("auth_user")
-            if token:
-                headers["Authorization"] = f"Basic {token}"
+            if bearer_token:
+                headers["Authorization"] = f"Bearer {bearer_token}"
+            elif basic_auth_token:
+                headers["Authorization"] = f"Basic {basic_auth_token}"
             if auth_user:
                 headers["X-Auth-Request-User"] = auth_user
 
@@ -708,10 +711,13 @@ class FetchServiceTraces(Tool):
             # Construct the API endpoint URL
             url = f"http://{tempo_url}:8080/v1/trace/query"
             headers = {"Content-Type": "application/json"}
-            token = self.toolset.config.get("basic_auth_token")
+            bearer_token = self.toolset.config.get("bearer_token")
+            basic_auth_token = self.toolset.config.get("basic_auth_token")
             auth_user = self.toolset.config.get("auth_user")
-            if token:
-                headers["Authorization"] = f"Basic {token}"
+            if bearer_token:
+                headers["Authorization"] = f"Bearer {bearer_token}"
+            elif basic_auth_token:
+                headers["Authorization"] = f"Basic {basic_auth_token}"
             if auth_user:
                 headers["X-Auth-Request-User"] = auth_user
 
@@ -854,10 +860,13 @@ class AnalyzeTraceRCA(Tool):
                 )
 
             headers = {"Content-Type": "application/json"}
-            token = self.toolset.config.get("basic_auth_token")
+            bearer_token = self.toolset.config.get("bearer_token")
+            basic_auth_token = self.toolset.config.get("basic_auth_token")
             auth_user = self.toolset.config.get("auth_user")
-            if token:
-                headers["Authorization"] = f"Basic {token}"
+            if bearer_token:
+                headers["Authorization"] = f"Bearer {bearer_token}"
+            elif basic_auth_token:
+                headers["Authorization"] = f"Basic {basic_auth_token}"
             if auth_user:
                 headers["X-Auth-Request-User"] = auth_user
             url = f"http://{tempo_url}:8080/v1/trace/query"
@@ -1246,6 +1255,7 @@ class KfuseTempoToolset(Toolset):
         return {
             "tempo_url": "your-kfuse-tempo-url",
             "kube_cluster_name": "your-cluster-name",
+            "bearer_token": "your-bearer-token",
             "basic_auth_token": "base64-encoded-token",
             "auth_user": "your-user",
         }
