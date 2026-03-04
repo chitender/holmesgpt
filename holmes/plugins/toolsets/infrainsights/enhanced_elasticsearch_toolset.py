@@ -24,7 +24,7 @@ class ElasticsearchHealthCheckTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -96,7 +96,7 @@ class ElasticsearchListIndicesTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -168,7 +168,7 @@ class ElasticsearchClusterStatsTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -237,7 +237,7 @@ class ElasticsearchNodeStatsTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -311,7 +311,7 @@ class ElasticsearchIndexStatsTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             index_name = params.get('index_name')
@@ -388,7 +388,7 @@ class ElasticsearchShardAllocationTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             index_name = params.get('index_name')
@@ -460,7 +460,7 @@ class ElasticsearchTasksTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             
@@ -530,7 +530,7 @@ class ElasticsearchPendingTasksTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             
@@ -600,7 +600,7 @@ class ElasticsearchThreadPoolStatsTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             
@@ -675,7 +675,7 @@ class ElasticsearchIndexMappingTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             index_name = params.get('index_name')
@@ -759,7 +759,7 @@ class ElasticsearchIndexSettingsTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             index_name = params.get('index_name')
@@ -843,7 +843,7 @@ class ElasticsearchHotThreadsTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             node_name = params.get('node_name')
@@ -915,7 +915,7 @@ class ElasticsearchSnapshotStatusTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             

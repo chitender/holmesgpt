@@ -24,7 +24,7 @@ class MongoDBHealthCheckTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -93,7 +93,7 @@ class MongoDBDatabaseListTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -172,7 +172,7 @@ class MongoDBCollectionStatsTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             database_name = params.get('database_name')
@@ -253,7 +253,7 @@ class MongoDBPerformanceMetricsTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -332,7 +332,7 @@ class MongoDBSlowQueriesAnalysisTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             database_name = params.get('database_name')
@@ -416,7 +416,7 @@ class MongoDBIndexAnalysisTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             database_name = params.get('database_name')
@@ -497,7 +497,7 @@ class MongoDBReplicaSetStatusTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -566,7 +566,7 @@ class MongoDBConnectionAnalysisTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -640,7 +640,7 @@ class MongoDBOperationsAnalysisTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             operation_threshold_ms = params.get('operation_threshold_ms', 1000)
@@ -712,7 +712,7 @@ class MongoDBSecurityAuditTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -781,7 +781,7 @@ class MongoDBBackupAnalysisTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -855,7 +855,7 @@ class MongoDBCapacityPlanningTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             projection_days = params.get('projection_days', 30)

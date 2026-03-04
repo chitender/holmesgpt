@@ -21,7 +21,7 @@ class BaseInfraInsightsToolV2(Tool):
         super().__init__(name=name, description=description, toolset=toolset, **kwargs)
     
     @abstractmethod
-    def _invoke(self, params: Dict[str, Any]) -> StructuredToolResult:
+    def _invoke(self, params: Dict[str, Any], context=None) -> StructuredToolResult:
         """Override this method to implement tool-specific logic"""
         pass
     

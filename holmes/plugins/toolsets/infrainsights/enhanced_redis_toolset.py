@@ -24,7 +24,7 @@ class RedisHealthCheckTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -98,7 +98,7 @@ class RedisPerformanceMetricsTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -175,7 +175,7 @@ class RedisMemoryAnalysisTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -257,7 +257,7 @@ class RedisKeyAnalysisTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -337,7 +337,7 @@ class RedisSlowLogAnalysisTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -414,7 +414,7 @@ class RedisConnectionAnalysisTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -486,7 +486,7 @@ class RedisReplicationStatusTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -555,7 +555,7 @@ class RedisPersistenceAnalysisTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -629,7 +629,7 @@ class RedisClusterAnalysisTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -706,7 +706,7 @@ class RedisSecurityAuditTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -783,7 +783,7 @@ class RedisCapacityPlanningTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -860,7 +860,7 @@ class RedisConfigurationAnalysisTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:

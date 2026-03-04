@@ -29,7 +29,7 @@ class KafkaConnectHealthCheckTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -148,7 +148,7 @@ class KafkaConnectListConnectorsTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             include_config = params.get('include_config', False)
@@ -278,7 +278,7 @@ class KafkaConnectConnectorDetailsTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             connector_name = params.get('connector_name')
@@ -400,7 +400,7 @@ class KafkaConnectCreateConnectorTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             connector_name = params.get('connector_name')
@@ -524,7 +524,7 @@ class KafkaConnectUpdateConnectorTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             connector_name = params.get('connector_name')
@@ -638,7 +638,7 @@ class KafkaConnectDeleteConnectorTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             connector_name = params.get('connector_name')
@@ -738,7 +738,7 @@ class KafkaConnectConnectorStatusTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             connector_name = params.get('connector_name')
@@ -871,7 +871,7 @@ class KafkaConnectRestartConnectorTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             connector_name = params.get('connector_name')

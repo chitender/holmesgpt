@@ -28,7 +28,7 @@ class KafkaHealthCheckTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -174,7 +174,7 @@ class KafkaListTopicsTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -347,7 +347,7 @@ class KafkaTopicDetailsTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             topic_name = params.get('topic_name')
@@ -559,7 +559,7 @@ class KafkaConsumerGroupsTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -793,7 +793,7 @@ class KafkaProducerPerformanceTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             topic_name = params.get('topic_name')
@@ -974,7 +974,7 @@ class KafkaConsumerLagTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -1197,7 +1197,7 @@ class KafkaPartitionAnalysisTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -1418,7 +1418,7 @@ class KafkaMessageAnalysisTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             topic_name = params.get('topic_name')
@@ -1706,7 +1706,7 @@ class KafkaBrokerMetricsTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -1901,7 +1901,7 @@ class KafkaSecurityAuditTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -2095,7 +2095,7 @@ class KafkaCapacityPlanningTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:
@@ -2339,7 +2339,7 @@ class KafkaConfigurationOptimizationTool(Tool):
         super().__init__()
         self.toolset = toolset
     
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
         try:
             instance_name = params.get('instance_name')
             if not instance_name:

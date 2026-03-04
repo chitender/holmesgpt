@@ -9,6 +9,7 @@ import requests
 from pydantic import ConfigDict, Field
 from holmes.core.tools import (
     Tool,
+    ToolInvokeContext,
     ToolParameter,
     Toolset,
     ToolsetTag,
@@ -408,7 +409,7 @@ class FetchTraces(Tool):
         )
         self.toolset = toolset
 
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context: ToolInvokeContext = None) -> StructuredToolResult:
         """Fetch APM traces for all services in the cluster"""
         try:
             user_prompt = params.get("user_prompt", "")
@@ -608,7 +609,7 @@ class FetchServiceTraces(Tool):
         )
         self.toolset = toolset
 
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context: ToolInvokeContext = None) -> StructuredToolResult:
         """Fetch APM traces for a specific Kubernetes service"""
         try:
             user_prompt = params["user_prompt"]
@@ -825,7 +826,7 @@ class AnalyzeTraceRCA(Tool):
         )
         self.toolset = toolset
 
-    def _invoke(self, params: Dict) -> StructuredToolResult:
+    def _invoke(self, params: Dict, context: ToolInvokeContext = None) -> StructuredToolResult:
         """Analyze APM trace for root cause analysis"""
         try:
             user_prompt = params["user_prompt"]
