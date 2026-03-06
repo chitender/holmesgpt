@@ -4,7 +4,7 @@ import logging
 import re
 import time
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, ClassVar, Dict, Optional
 
 import requests
 from pydantic import ConfigDict, Field
@@ -433,7 +433,7 @@ class FetchTraces(Tool):
     }
 
     # Max traces to return to avoid flooding LLM context
-    MAX_TRACES_RESPONSE = 50
+    MAX_TRACES_RESPONSE: ClassVar[int] = 50
 
     toolset: Optional[Any] = Field(default=None, exclude=True)
 
@@ -682,7 +682,7 @@ class FetchServiceTraces(Tool):
         ),
     }
 
-    MAX_TRACES_RESPONSE = 50
+    MAX_TRACES_RESPONSE: ClassVar[int] = 50
 
     toolset: Optional[Any] = Field(default=None, exclude=True)
 
