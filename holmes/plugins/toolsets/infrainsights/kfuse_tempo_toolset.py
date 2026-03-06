@@ -423,8 +423,17 @@ class FetchTraces(Tool):
             type="string",
             required=False,
             default="",
-        )
+        ),
+        "limit": ToolParameter(
+            description="Maximum number of traces to return (default 10, max 50)",
+            type="integer",
+            required=False,
+            default="10",
+        ),
     }
+
+    # Max traces to return to avoid flooding LLM context
+    MAX_TRACES_RESPONSE = 50
 
     toolset: Optional[Any] = Field(default=None, exclude=True)
 
@@ -445,7 +454,13 @@ class FetchTraces(Tool):
                     type="string",
                     required=False,
                     default="",
-                )
+                ),
+                "limit": ToolParameter(
+                    description="Maximum number of traces to return (default 10, max 50)",
+                    type="integer",
+                    required=False,
+                    default="10",
+                ),
             },
         )
         self.toolset = toolset
@@ -454,6 +469,7 @@ class FetchTraces(Tool):
         """Fetch APM traces for all services in the cluster"""
         try:
             user_prompt = params.get("user_prompt", "")
+            requested_limit = min(int(params.get("limit", 10)), self.MAX_TRACES_RESPONSE)
 
             # Get configuration values from the toolset config
             tempo_url = os.getenv("TEMPO_URL", self.toolset.config.get("tempo_url"))
@@ -489,7 +505,7 @@ class FetchTraces(Tool):
             # Generate current timestamp in ISO 8601 format with timezone offset
             current_timestamp = datetime.now().astimezone().isoformat()
 
-            # Build the query payload
+            # Build the query payload - sort by duration descending for "slowest" queries
             query = f"""
             {{
               traces (
@@ -515,7 +531,7 @@ class FetchTraces(Tool):
                   ]
                 }}
                 timestamp: "{current_timestamp}"
-                sortField: "timestamp"
+                sortField: "duration"
                 sortOrder: Desc
               ) {{
                 traceId
@@ -524,14 +540,11 @@ class FetchTraces(Tool):
                   parentSpanId
                   startTimeNs
                   endTimeNs
-                  attributes
                   durationNs
                   name
                   service {{
                     name
-                    labels
                     hash
-                    distinctLabels
                   }}
                   statusCode
                   method
@@ -552,7 +565,7 @@ class FetchTraces(Tool):
             url = f"http://{tempo_url}:8080/v1/trace/query"
             headers = _build_kfuse_headers(self.toolset.config)
 
-            logger.info(f"Fetching traces for cluster: {kube_cluster_name}")
+            logger.info(f"Fetching traces for cluster: {kube_cluster_name} (limit: {requested_limit})")
             logger.info(f"Duration filter: {duration_secs} seconds")
             logger.info(f"Request URL: {url}")
             logger.info(f"Request headers: {[k for k in headers.keys()]}")
@@ -569,16 +582,46 @@ class FetchTraces(Tool):
             response.raise_for_status()
             result = response.json()
 
-            # Add metadata to the response
-            result["metadata"] = {
-                "cluster_name": kube_cluster_name,
-                "duration_filter_seconds": duration_secs,
-                "query_timestamp": current_timestamp,
-                "tempo_host": tempo_url,
+            # --- Truncate response to avoid flooding LLM context ---
+            traces = result.get("data", {}).get("traces", [])
+            total_traces_returned = len(traces)
+            # Keep only the top N traces
+            traces = traces[:requested_limit]
+
+            # Summarize each trace to reduce token count
+            summarized_traces = []
+            for trace in traces:
+                span = trace.get("span", {})
+                metrics = trace.get("traceMetrics", {})
+                duration_ns = span.get("durationNs", 0)
+                summarized_traces.append({
+                    "traceId": trace.get("traceId"),
+                    "service": span.get("service", {}).get("name", "unknown"),
+                    "endpoint": span.get("endpoint", ""),
+                    "method": span.get("method", ""),
+                    "statusCode": span.get("statusCode", ""),
+                    "durationMs": round(duration_ns / 1_000_000, 2) if duration_ns else 0,
+                    "durationSec": round(duration_ns / 1_000_000_000, 3) if duration_ns else 0,
+                    "spanCount": metrics.get("spanCount", 0),
+                    "rootSpan": span.get("rootSpan", False),
+                    "spanName": span.get("name", ""),
+                })
+
+            compact_result = {
+                "traces": summarized_traces,
+                "metadata": {
+                    "cluster_name": kube_cluster_name,
+                    "duration_filter_seconds": duration_secs,
+                    "query_timestamp": current_timestamp,
+                    "tempo_host": tempo_url,
+                    "total_traces_available": total_traces_returned,
+                    "traces_returned": len(summarized_traces),
+                    "sort": "duration descending (slowest first)",
+                },
             }
 
             return StructuredToolResult(
-                status=StructuredToolResultStatus.SUCCESS, data=result, params=params
+                status=StructuredToolResultStatus.SUCCESS, data=compact_result, params=params
             )
         except requests.exceptions.Timeout:
             return StructuredToolResult(
@@ -630,8 +673,16 @@ class FetchServiceTraces(Tool):
             description="User prompt containing service, namespace, cluster, and duration information",
             type="string",
             required=True,
-        )
+        ),
+        "limit": ToolParameter(
+            description="Maximum number of traces to return (default 10, max 50)",
+            type="integer",
+            required=False,
+            default="10",
+        ),
     }
+
+    MAX_TRACES_RESPONSE = 50
 
     toolset: Optional[Any] = Field(default=None, exclude=True)
 
@@ -650,7 +701,13 @@ class FetchServiceTraces(Tool):
                     description="User prompt containing service, namespace, cluster, and duration information",
                     type="string",
                     required=True,
-                )
+                ),
+                "limit": ToolParameter(
+                    description="Maximum number of traces to return (default 10, max 50)",
+                    type="integer",
+                    required=False,
+                    default="10",
+                ),
             },
         )
         self.toolset = toolset
@@ -659,6 +716,7 @@ class FetchServiceTraces(Tool):
         """Fetch APM traces for a specific Kubernetes service"""
         try:
             user_prompt = params["user_prompt"]
+            requested_limit = min(int(params.get("limit", 10)), self.MAX_TRACES_RESPONSE)
 
             # Get configuration values from the toolset config
             tempo_url = os.getenv("TEMPO_URL", self.toolset.config.get("tempo_url"))
@@ -704,7 +762,7 @@ class FetchServiceTraces(Tool):
             # Generate current timestamp in ISO 8601 format with timezone offset
             current_timestamp = datetime.now().astimezone().isoformat()
 
-            # Build the query payload
+            # Build the query payload - sort by duration descending for slowest traces
             query = f"""
         {{
           traces (
@@ -718,7 +776,7 @@ class FetchServiceTraces(Tool):
               ]
             }}
             timestamp: "{current_timestamp}"
-            sortField: "timestamp"
+            sortField: "duration"
             sortOrder: Desc
           ) {{
             traceId
@@ -727,14 +785,11 @@ class FetchServiceTraces(Tool):
               parentSpanId
               startTimeNs
               endTimeNs
-              attributes
               durationNs
               name
               service {{
                 name
-                labels
                 hash
-                distinctLabels
               }}
               statusCode
               method
@@ -755,7 +810,7 @@ class FetchServiceTraces(Tool):
             url = f"http://{tempo_url}:8080/v1/trace/query"
             headers = _build_kfuse_headers(self.toolset.config)
 
-            logger.info(f"Fetching traces for service: {service_name}")
+            logger.info(f"Fetching traces for service: {service_name} (limit: {requested_limit})")
             logger.info(f"Namespace: {namespace}")
             logger.info(f"Cluster: {kube_cluster_name}")
             logger.info(f"Duration filter: {duration_secs} seconds")
@@ -767,18 +822,47 @@ class FetchServiceTraces(Tool):
             response.raise_for_status()
             result = response.json()
 
-            # Add metadata to the response
-            result["metadata"] = {
-                "service_name": service_name,
-                "namespace": namespace,
-                "cluster_name": kube_cluster_name,
-                "duration_filter_seconds": duration_secs,
-                "query_timestamp": current_timestamp,
-                "tempo_host": tempo_url,
+            # --- Truncate response to avoid flooding LLM context ---
+            traces = result.get("data", {}).get("traces", [])
+            total_traces_returned = len(traces)
+            traces = traces[:requested_limit]
+
+            # Summarize each trace to reduce token count
+            summarized_traces = []
+            for trace in traces:
+                span = trace.get("span", {})
+                metrics = trace.get("traceMetrics", {})
+                duration_ns = span.get("durationNs", 0)
+                summarized_traces.append({
+                    "traceId": trace.get("traceId"),
+                    "service": span.get("service", {}).get("name", "unknown"),
+                    "endpoint": span.get("endpoint", ""),
+                    "method": span.get("method", ""),
+                    "statusCode": span.get("statusCode", ""),
+                    "durationMs": round(duration_ns / 1_000_000, 2) if duration_ns else 0,
+                    "durationSec": round(duration_ns / 1_000_000_000, 3) if duration_ns else 0,
+                    "spanCount": metrics.get("spanCount", 0),
+                    "rootSpan": span.get("rootSpan", False),
+                    "spanName": span.get("name", ""),
+                })
+
+            compact_result = {
+                "traces": summarized_traces,
+                "metadata": {
+                    "service_name": service_name,
+                    "namespace": namespace,
+                    "cluster_name": kube_cluster_name,
+                    "duration_filter_seconds": duration_secs,
+                    "query_timestamp": current_timestamp,
+                    "tempo_host": tempo_url,
+                    "total_traces_available": total_traces_returned,
+                    "traces_returned": len(summarized_traces),
+                    "sort": "duration descending (slowest first)",
+                },
             }
 
             return StructuredToolResult(
-                status=StructuredToolResultStatus.SUCCESS, data=result, params=params
+                status=StructuredToolResultStatus.SUCCESS, data=compact_result, params=params
             )
         except requests.exceptions.Timeout:
             return StructuredToolResult(
@@ -922,7 +1006,7 @@ class AnalyzeTraceRCA(Tool):
               ]
             }}
             timestamp: "{current_timestamp}"
-            sortField: "timestamp"
+            sortField: "duration"
             sortOrder: Desc
           ) {{
             traceId
@@ -931,14 +1015,11 @@ class AnalyzeTraceRCA(Tool):
               parentSpanId
               startTimeNs
               endTimeNs
-              attributes
               durationNs
               name
               service {{
                 name
-                labels
                 hash
-                distinctLabels
               }}
               statusCode
               method
