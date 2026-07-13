@@ -366,7 +366,7 @@ class InfraInsightsClientV2:
             client_config = {
                 'hosts': [es_url],
                 'verify_certs': False,
-                'request_timeout': 30
+                'timeout': 30
             }
             
             # Create appropriate client based on service type
@@ -419,12 +419,12 @@ class InfraInsightsClientV2:
                 logger.info("🔍 Using Elasticsearch client")
                 from elasticsearch import Elasticsearch
                 
-                # Elasticsearch client uses basic_auth parameter
+                # Elasticsearch 7.x client uses http_auth parameter
                 if username and password:
-                    client_config['basic_auth'] = (username, password)
+                    client_config['http_auth'] = (username, password)
                     logger.info(f"🔍 Elasticsearch auth configured: username={username}")
                 
-                config_display = {k: ('***' if k == 'basic_auth' else v) for k, v in client_config.items()}
+                config_display = {k: ('***' if k == 'http_auth' else v) for k, v in client_config.items()}
                 logger.info(f"🔍 Elasticsearch client config: {config_display}")
                 client = Elasticsearch(**client_config)
             
@@ -475,7 +475,7 @@ class InfraInsightsClientV2:
             client_config = {
                 'hosts': [es_url],
                 'verify_certs': False,
-                'request_timeout': 30
+                'timeout': 30
             }
             
             # Create appropriate client based on service type
@@ -508,12 +508,12 @@ class InfraInsightsClientV2:
                 logger.info("🔍 Using Elasticsearch client")
                 from elasticsearch import Elasticsearch
                 
-                # Elasticsearch client uses basic_auth parameter
+                # Elasticsearch 7.x client uses http_auth parameter
                 if username and password:
-                    client_config['basic_auth'] = (username, password)
+                    client_config['http_auth'] = (username, password)
                     logger.info(f"🔍 Elasticsearch auth configured: username={username}")
                 
-                config_display = {k: ('***' if k == 'basic_auth' else v) for k, v in client_config.items()}
+                config_display = {k: ('***' if k == 'http_auth' else v) for k, v in client_config.items()}
                 logger.info(f"🔍 Elasticsearch client config: {config_display}")
                 client = Elasticsearch(**client_config)
                 indices_response = client.cat.indices(format='json', v=True)
@@ -563,7 +563,7 @@ class InfraInsightsClientV2:
             client_config = {
                 'hosts': [es_url],
                 'verify_certs': False,
-                'request_timeout': 30
+                'timeout': 30
             }
             
             # Create appropriate client based on service type
@@ -592,9 +592,9 @@ class InfraInsightsClientV2:
                 logger.info("🔍 Using Elasticsearch client")
                 from elasticsearch import Elasticsearch
                 
-                # Elasticsearch client uses basic_auth parameter
+                # Elasticsearch 7.x client uses http_auth parameter
                 if username and password:
-                    client_config['basic_auth'] = (username, password)
+                    client_config['http_auth'] = (username, password)
                 
                 client = Elasticsearch(**client_config)
                 stats_response = client.cluster.stats()
@@ -630,7 +630,7 @@ class InfraInsightsClientV2:
             client_config = {
                 'hosts': [es_url],
                 'verify_certs': False,
-                'request_timeout': 30
+                'timeout': 30
             }
             
             # Create appropriate client based on service type
@@ -659,7 +659,7 @@ class InfraInsightsClientV2:
                 from elasticsearch import Elasticsearch
                 
                 if username and password:
-                    client_config['basic_auth'] = (username, password)
+                    client_config['http_auth'] = (username, password)
                 
                 client = Elasticsearch(**client_config)
                 stats_response = client.nodes.stats()
@@ -695,7 +695,7 @@ class InfraInsightsClientV2:
             client_config = {
                 'hosts': [es_url],
                 'verify_certs': False,
-                'request_timeout': 30
+                'timeout': 30
             }
             
             # Create appropriate client based on service type
@@ -730,7 +730,7 @@ class InfraInsightsClientV2:
                 from elasticsearch import Elasticsearch
                 
                 if username and password:
-                    client_config['basic_auth'] = (username, password)
+                    client_config['http_auth'] = (username, password)
                 
                 client = Elasticsearch(**client_config)
                 if index_name:
@@ -770,7 +770,7 @@ class InfraInsightsClientV2:
             client_config = {
                 'hosts': [es_url],
                 'verify_certs': False,
-                'request_timeout': 30
+                'timeout': 30
             }
             
             # Create appropriate client based on service type
@@ -805,7 +805,7 @@ class InfraInsightsClientV2:
                 from elasticsearch import Elasticsearch
                 
                 if username and password:
-                    client_config['basic_auth'] = (username, password)
+                    client_config['http_auth'] = (username, password)
                 
                 client = Elasticsearch(**client_config)
                 if index_name:
@@ -845,7 +845,7 @@ class InfraInsightsClientV2:
             client_config = {
                 'hosts': [es_url],
                 'verify_certs': False,
-                'request_timeout': 30
+                'timeout': 30
             }
             
             # Create appropriate client based on service type
@@ -874,7 +874,7 @@ class InfraInsightsClientV2:
                 from elasticsearch import Elasticsearch
                 
                 if username and password:
-                    client_config['basic_auth'] = (username, password)
+                    client_config['http_auth'] = (username, password)
                 
                 client = Elasticsearch(**client_config)
                 tasks_response = client.tasks.list(detailed=True)
@@ -910,7 +910,7 @@ class InfraInsightsClientV2:
             client_config = {
                 'hosts': [es_url],
                 'verify_certs': False,
-                'request_timeout': 30
+                'timeout': 30
             }
             
             # Create appropriate client based on service type
@@ -939,7 +939,7 @@ class InfraInsightsClientV2:
                 from elasticsearch import Elasticsearch
                 
                 if username and password:
-                    client_config['basic_auth'] = (username, password)
+                    client_config['http_auth'] = (username, password)
                 
                 client = Elasticsearch(**client_config)
                 pending_response = client.cluster.pending_tasks()
@@ -975,7 +975,7 @@ class InfraInsightsClientV2:
             client_config = {
                 'hosts': [es_url],
                 'verify_certs': False,
-                'request_timeout': 30
+                'timeout': 30
             }
             
             # Create appropriate client based on service type
@@ -1004,7 +1004,7 @@ class InfraInsightsClientV2:
                 from elasticsearch import Elasticsearch
                 
                 if username and password:
-                    client_config['basic_auth'] = (username, password)
+                    client_config['http_auth'] = (username, password)
                 
                 client = Elasticsearch(**client_config)
                 stats_response = client.nodes.stats(metric='thread_pool')
@@ -1040,7 +1040,7 @@ class InfraInsightsClientV2:
             client_config = {
                 'hosts': [es_url],
                 'verify_certs': False,
-                'request_timeout': 30
+                'timeout': 30
             }
             
             # Create appropriate client based on service type
@@ -1069,7 +1069,7 @@ class InfraInsightsClientV2:
                 from elasticsearch import Elasticsearch
                 
                 if username and password:
-                    client_config['basic_auth'] = (username, password)
+                    client_config['http_auth'] = (username, password)
                 
                 client = Elasticsearch(**client_config)
                 mapping_response = client.indices.get_mapping(index=index_name)
@@ -1106,7 +1106,7 @@ class InfraInsightsClientV2:
             client_config = {
                 'hosts': [es_url],
                 'verify_certs': False,
-                'request_timeout': 30
+                'timeout': 30
             }
             
             # Create appropriate client based on service type
@@ -1135,7 +1135,7 @@ class InfraInsightsClientV2:
                 from elasticsearch import Elasticsearch
                 
                 if username and password:
-                    client_config['basic_auth'] = (username, password)
+                    client_config['http_auth'] = (username, password)
                 
                 client = Elasticsearch(**client_config)
                 settings_response = client.indices.get_settings(index=index_name)
@@ -1172,7 +1172,7 @@ class InfraInsightsClientV2:
             client_config = {
                 'hosts': [es_url],
                 'verify_certs': False,
-                'request_timeout': 30
+                'timeout': 30
             }
             
             # Create appropriate client based on service type
@@ -1207,7 +1207,7 @@ class InfraInsightsClientV2:
                 from elasticsearch import Elasticsearch
                 
                 if username and password:
-                    client_config['basic_auth'] = (username, password)
+                    client_config['http_auth'] = (username, password)
                 
                 client = Elasticsearch(**client_config)
                 if node_name:
@@ -1247,7 +1247,7 @@ class InfraInsightsClientV2:
             client_config = {
                 'hosts': [es_url],
                 'verify_certs': False,
-                'request_timeout': 30
+                'timeout': 30
             }
             
             # Create appropriate client based on service type
@@ -1276,7 +1276,7 @@ class InfraInsightsClientV2:
                 from elasticsearch import Elasticsearch
                 
                 if username and password:
-                    client_config['basic_auth'] = (username, password)
+                    client_config['http_auth'] = (username, password)
                 
                 client = Elasticsearch(**client_config)
                 snapshot_response = client.snapshot.status()
