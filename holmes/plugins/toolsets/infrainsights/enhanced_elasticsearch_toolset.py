@@ -37,6 +37,10 @@ Interpreting node stats correctly - avoid these common mistakes:
   names threads, not the query/index - use elasticsearch_slow_queries/elasticsearch_tasks for that.
 - Yellow cluster status (unassigned replicas) reduces search throughput/redundancy but does
   not by itself prove a latency cause; confirm with the thread pool and index-level signals.
+
+If no dedicated tool covers what you need (e.g. _cluster/allocation/explain to explain
+unassigned shards, _recovery, _segments, or a targeted _search), use elasticsearch_request -
+a read-only escape hatch to any Elasticsearch REST endpoint.
 """.strip()
 
 
@@ -1092,6 +1096,146 @@ class ElasticsearchSlowQueriesTool(Tool):
         return f"elasticsearch_slow_queries(instance_name={instance_name}, min_running_time_ms={min_ms})"
 
 
+def _coerce_dict(value: Any) -> Optional[Dict[str, Any]]:
+    """Accept a dict or a JSON-string (LLMs sometimes pass objects as strings)."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except (ValueError, TypeError):
+            raise ValueError("must be a JSON object")
+        if not isinstance(parsed, dict):
+            raise ValueError("must be a JSON object")
+        return parsed
+    raise ValueError("must be a JSON object")
+
+
+class ElasticsearchRequestTool(Tool):
+    """Generic read-only Elasticsearch/OpenSearch REST escape hatch"""
+
+    name: str = "elasticsearch_request"
+    description: str = (
+        "Make an arbitrary READ-ONLY request to any Elasticsearch/OpenSearch REST endpoint "
+        "when no dedicated tool covers what you need (e.g. _cluster/allocation/explain, "
+        "_cat/* endpoints, a targeted _search, _field_caps, _recovery, _segments). Strictly "
+        "read-only: GET is always allowed; POST is allowed only for search/read endpoints "
+        "(_search, _count, _field_caps, etc.). Any write/mutating request is rejected. "
+        "Search hit counts are capped and oversized responses are truncated."
+    )
+    parameters: Dict[str, ToolParameter] = {
+        "instance_name": ToolParameter(
+            description="Name of the Elasticsearch or OpenSearch instance",
+            type="string",
+            required=True
+        ),
+        "path": ToolParameter(
+            description="REST path without host, e.g. '_cluster/allocation/explain', '_cat/indices', 'my-index/_search'. Do not include a query string here - use query_params.",
+            type="string",
+            required=True
+        ),
+        "method": ToolParameter(
+            description="HTTP method: 'GET' (default) or 'POST' (POST only for search/read endpoints)",
+            type="string",
+            required=False
+        ),
+        "query_params": ToolParameter(
+            description="Optional URL query parameters as a JSON object, e.g. {\"filter_path\": \"nodes.*.jvm\", \"format\": \"json\", \"v\": true}",
+            type="object",
+            required=False
+        ),
+        "body": ToolParameter(
+            description="Optional request body as a JSON object (for POST search endpoints), e.g. {\"query\": {\"match_all\": {}}, \"size\": 5}",
+            type="object",
+            required=False
+        )
+    }
+    toolset: Optional[Any] = None
+
+    def __init__(self, toolset=None):
+        super().__init__()
+        self.toolset = toolset
+
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
+        try:
+            instance_name = params.get('instance_name')
+            path = params.get('path')
+            method = params.get('method') or 'GET'
+
+            if not instance_name:
+                return StructuredToolResult(
+                    status=StructuredToolResultStatus.ERROR,
+                    error="instance_name parameter is required",
+                    params=params
+                )
+            if not path:
+                return StructuredToolResult(
+                    status=StructuredToolResultStatus.ERROR,
+                    error="path parameter is required",
+                    params=params
+                )
+
+            try:
+                query_params = _coerce_dict(params.get('query_params'))
+                body = _coerce_dict(params.get('body'))
+            except ValueError as e:
+                return StructuredToolResult(
+                    status=StructuredToolResultStatus.ERROR,
+                    error=f"Invalid parameter: {str(e)}",
+                    params=params
+                )
+
+            logger.info(f"🔍 elasticsearch_request {method} /{path} on instance: {instance_name}")
+
+            if not self.toolset or not self.toolset.infrainsights_client:
+                return StructuredToolResult(
+                    status=StructuredToolResultStatus.ERROR,
+                    error="InfraInsights client not available",
+                    params=params
+                )
+
+            instance = self.toolset.infrainsights_client.get_instance_by_name_and_type(
+                "elasticsearch", instance_name
+            )
+
+            if not instance:
+                return StructuredToolResult(
+                    status=StructuredToolResultStatus.ERROR,
+                    error=f"Elasticsearch/OpenSearch instance '{instance_name}' not found",
+                    params=params
+                )
+
+            data = self.toolset.infrainsights_client.elasticsearch_raw_request(
+                instance,
+                path=path,
+                method=method,
+                query_params=query_params,
+                body=body,
+            )
+
+            return StructuredToolResult(
+                status=StructuredToolResultStatus.SUCCESS,
+                data=data,
+                params=params
+            )
+
+        except Exception as e:
+            logger.error(f"Error in elasticsearch_request: {e}", exc_info=True)
+            return StructuredToolResult(
+                status=StructuredToolResultStatus.ERROR,
+                error=f"Failed to perform request: {str(e)}",
+                params=params
+            )
+
+    def get_parameterized_one_liner(self, params: Dict) -> str:
+        instance_name = params.get('instance_name', 'unknown')
+        method = params.get('method', 'GET')
+        path = params.get('path', '')
+        return f"elasticsearch_request(instance_name={instance_name}, method={method}, path=/{path})"
+
+
 class EnhancedElasticsearchToolset(Toolset):
     """Enhanced Elasticsearch/OpenSearch toolset with InfraInsights integration"""
     
@@ -1129,6 +1273,9 @@ class EnhancedElasticsearchToolset(Toolset):
             
             # Backup and maintenance
             ElasticsearchSnapshotStatusTool(toolset=None),
+
+            # Generic read-only escape hatch for endpoints without a dedicated tool
+            ElasticsearchRequestTool(toolset=None),
         ]
         
         # Initialize Toolset with required parameters

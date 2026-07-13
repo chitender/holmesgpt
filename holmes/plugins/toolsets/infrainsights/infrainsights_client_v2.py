@@ -8,6 +8,28 @@ from urllib.parse import urljoin
 
 logger = logging.getLogger(__name__)
 
+
+# --- Read-only Elasticsearch REST access (used by the elasticsearch_request tool) ---
+# GET is read-only by Elasticsearch REST convention, so it is always allowed. POST is
+# allowed ONLY for the search/read family below (these endpoints accept a query body but
+# never mutate state). Every other verb (PUT/DELETE/PATCH) and any POST outside this set
+# is rejected, so the tool can never change cluster state.
+_ES_READ_POST_ACTIONS = {
+    "_search",
+    "_msearch",
+    "_count",
+    "_field_caps",
+    "_explain",
+    "_validate",
+    "_analyze",
+    "_search_shards",
+    "_rank_eval",
+    "_terms_enum",
+    "_mvt",
+    "_knn_search",
+}
+
+
 @dataclass
 class InfraInsightsConfig:
     base_url: str
@@ -1023,6 +1045,211 @@ class InfraInsightsClientV2:
         except Exception as e:
             logger.error(f"Failed to get Elasticsearch/OpenSearch slow queries for {instance.name}: {e}")
             raise Exception(f"Failed to get Elasticsearch/OpenSearch slow queries: {str(e)}")
+
+    @staticmethod
+    def _validate_read_only_es_request(method: Optional[str], path: str) -> tuple:
+        """Validate and normalize a raw Elasticsearch/OpenSearch request as strictly read-only.
+
+        Returns ``(method, normalized_path)``. Raises ``ValueError`` for anything that could
+        mutate or create server-side state.
+
+        Rules:
+          * Verb: ``GET`` (read-only by ES REST convention) is always allowed; ``POST`` is
+            allowed ONLY for the search/read family (``_search``, ``_count``, ...). ``PUT``,
+            ``DELETE``, ``PATCH`` and ``POST`` to any other endpoint are rejected.
+          * ``scroll`` and point-in-time (``_pit``) endpoints are rejected even on ``GET``
+            because they create server-side state.
+          * The path must be an ES REST path (not a full URL) and must not contain ``..``.
+        """
+        method = (method or "GET").upper().strip()
+        if method not in ("GET", "POST"):
+            raise ValueError(
+                f"method '{method}' is not allowed; this tool is read-only "
+                "(use GET, or POST only for search/read endpoints)"
+            )
+
+        if not path or not path.strip():
+            raise ValueError("path is required")
+
+        norm = path.strip()
+        if "://" in norm:
+            raise ValueError("path must be an Elasticsearch REST path, not a full URL")
+        # Drop any query string the model may have appended; it belongs in query_params.
+        norm = norm.split("?", 1)[0].strip().strip("/")
+        if not norm:
+            raise ValueError("path is required")
+
+        segments = [s for s in norm.split("/") if s]
+        if ".." in segments:
+            raise ValueError("path must not contain '..'")
+
+        lowered = [s.lower() for s in segments]
+
+        # Reject state-creating "reads" (scroll / point-in-time) regardless of verb.
+        if "scroll" in lowered or "_pit" in lowered:
+            raise ValueError(
+                "scroll and point-in-time (_pit) endpoints create server-side state "
+                "and are not permitted"
+            )
+
+        if method == "POST":
+            action_segments = [s for s in lowered if s.startswith("_")]
+            if not any(s in _ES_READ_POST_ACTIONS for s in action_segments):
+                raise ValueError(
+                    "POST is only permitted to search/read endpoints ("
+                    + ", ".join(sorted(_ES_READ_POST_ACTIONS))
+                    + f"); path '{norm}' is not one of them"
+                )
+
+        return method, norm
+
+    @staticmethod
+    def _bound_search_request(
+        path: str,
+        query_params: Optional[Dict[str, Any]],
+        body: Optional[Dict[str, Any]],
+        max_hits: int,
+    ) -> tuple:
+        """Cap the hit count on a ``_search`` request to protect against token overflow.
+
+        Only single ``_search`` requests are bounded here (``_msearch`` uses an NDJSON body
+        and is handled by the response-size guard instead).
+        """
+        segments = [s.lower() for s in path.split("/") if s]
+        if "_search" not in segments:
+            return query_params, body
+
+        if isinstance(body, dict):
+            body = dict(body)
+            size = body.get("size")
+            if size is None:
+                body["size"] = max_hits
+            elif isinstance(size, int) and size > max_hits:
+                body["size"] = max_hits
+        else:
+            query_params = dict(query_params or {})
+            qp_size = query_params.get("size")
+            try:
+                if qp_size is None or int(qp_size) > max_hits:
+                    query_params["size"] = max_hits
+            except (TypeError, ValueError):
+                query_params["size"] = max_hits
+
+        return query_params, body
+
+    def elasticsearch_raw_request(
+        self,
+        instance: ServiceInstance,
+        path: str,
+        method: str = "GET",
+        query_params: Optional[Dict[str, Any]] = None,
+        body: Optional[Dict[str, Any]] = None,
+        max_hits: int = 100,
+        max_response_chars: int = 100_000,
+    ) -> Dict[str, Any]:
+        """Perform an arbitrary READ-ONLY Elasticsearch/OpenSearch REST request.
+
+        Generic escape hatch so the LLM can reach any read endpoint (e.g.
+        ``_cluster/allocation/explain``, ``_cat/*``, a targeted ``_search``) without a
+        bespoke tool per endpoint. Strictly read-only - see
+        :meth:`_validate_read_only_es_request`. Search hit counts are capped and oversized
+        responses are truncated to avoid token overflow.
+        """
+        try:
+            # Validate/bound BEFORE touching the cluster.
+            method, path = self._validate_read_only_es_request(method, path)
+            query_params, body = self._bound_search_request(path, query_params, body, max_hits)
+
+            if not instance.config:
+                raise Exception("Instance configuration not available")
+
+            es_url = instance.config.get('elasticsearchUrl')
+            username = instance.config.get('username')
+            password = instance.config.get('password')
+            service_type = instance.config.get('type', 'elasticsearch').lower()
+
+            if not es_url:
+                raise Exception("Elasticsearch/OpenSearch URL not found in instance configuration")
+
+            logger.info(f"🔍 elasticsearch_request {method} /{path} on instance: {instance.name}")
+
+            client_config = {
+                'hosts': [es_url],
+                'verify_certs': False,
+                'timeout': 30
+            }
+            endpoint = "/" + path
+
+            if service_type == 'opensearch':
+                logger.info("🔍 Using OpenSearch-compatible approach")
+                try:
+                    from opensearchpy import OpenSearch
+
+                    if username and password:
+                        client_config['http_auth'] = (username, password)
+
+                    client = OpenSearch(**client_config)
+                    raw = client.transport.perform_request(
+                        method, endpoint, params=query_params, body=body
+                    )
+                except ImportError:
+                    logger.warning("OpenSearch client not available, using direct HTTP request")
+
+                    auth = (username, password) if username and password else None
+                    url = f"{es_url.rstrip('/')}{endpoint}"
+                    response = requests.request(
+                        method, url, params=query_params, json=body,
+                        auth=auth, verify=False, timeout=30
+                    )
+                    response.raise_for_status()
+                    raw = response.json()
+            else:
+                logger.info("🔍 Using Elasticsearch client")
+                from elasticsearch import Elasticsearch
+
+                if username and password:
+                    client_config['http_auth'] = (username, password)
+
+                client = Elasticsearch(**client_config)
+                raw = client.transport.perform_request(
+                    method, endpoint, params=query_params, body=body
+                )
+
+            result = {
+                'instance_name': instance.name,
+                'instance_id': instance.instanceId,
+                'service_type': service_type,
+                'method': method,
+                'path': path,
+                'query_params': query_params,
+            }
+
+            # Guard against token overflow from broad endpoints (e.g. _cat/indices on a
+            # large cluster). Truncate the serialized response and tell the LLM to narrow.
+            serialized = json.dumps(raw, default=str)
+            if len(serialized) > max_response_chars:
+                result['truncated'] = True
+                result['note'] = (
+                    f"Response exceeded {max_response_chars} chars and was truncated. "
+                    "Narrow it with a more specific path, a 'filter_path' query param, or a "
+                    "smaller size."
+                )
+                result['response_preview'] = serialized[:max_response_chars]
+            else:
+                result['truncated'] = False
+                result['response'] = raw
+
+            return result
+
+        except ValueError as e:
+            # Read-only policy rejection - surface distinctly from connectivity errors.
+            logger.warning(
+                f"Rejected elasticsearch_request for {getattr(instance, 'name', '?')}: {e}"
+            )
+            raise Exception(f"Request rejected by read-only policy: {str(e)}")
+        except Exception as e:
+            logger.error(f"Failed elasticsearch_raw_request for {instance.name}: {e}")
+            raise Exception(f"Failed to perform Elasticsearch/OpenSearch request: {str(e)}")
 
     def get_elasticsearch_pending_tasks(self, instance: ServiceInstance) -> Dict[str, Any]:
         """Get Elasticsearch/OpenSearch pending tasks"""
