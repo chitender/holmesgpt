@@ -6,6 +6,40 @@ from holmes.core.tools import Tool, StructuredToolResultStatus, StructuredToolRe
 logger = logging.getLogger(__name__)
 
 
+# Guidance rendered into the LLM system prompt when this toolset is enabled. It steers the
+# investigation toward the signals that actually explain Elasticsearch search latency and
+# corrects mistakes commonly made when reading node stats and hot threads.
+ELASTICSEARCH_LLM_INSTRUCTIONS = """
+When investigating Elasticsearch/OpenSearch SEARCH LATENCY, work through these signals and
+do NOT conclude before checking the queuing and query-level ones:
+
+1. elasticsearch_thread_pool_stats - inspect the `search` thread pool `queue` and `rejected`
+   counts FIRST. This is the primary latency signal: it tells you whether latency is caused
+   by queuing/saturation (queue > 0 or rejected > 0) rather than raw CPU.
+2. elasticsearch_slow_queries - find the actual slow query body and target index for searches
+   running right now. Use this to answer "which query/index is slow". If it returns nothing,
+   re-run it during the latency spike or lower min_running_time_ms.
+3. elasticsearch_tasks - cross-check long-running search tasks and their descriptions.
+4. elasticsearch_index_stats - identify the hot index (high query_total / query_time_in_millis
+   / fetch_time), then elasticsearch_index_settings / elasticsearch_index_mapping for refresh
+   interval, replica count, or mapping problems.
+5. elasticsearch_shard_allocation - if shards are unassigned, explain WHY (recovery I/O from
+   reallocation can itself cause latency). Do not merely report the unassigned count.
+
+Interpreting node stats correctly - avoid these common mistakes:
+- OS memory at ~90-100% used is NORMAL and HEALTHY for Elasticsearch: the OS uses otherwise
+  free RAM for the filesystem/page cache, which Lucene relies on for fast segment reads. Do
+  NOT recommend "add more memory" based on OS memory. The latency-relevant memory signal is
+  the JVM HEAP (jvm.mem.heap_used_percent after GC) and GC pause time/frequency - report those.
+- elasticsearch_hot_threads is a point-in-time SAMPLE; repeated calls legitimately return
+  different threads and percentages. A single low sample (a few percent) is NOT evidence of a
+  CPU-bound search. Describe the STABLE offender and state that it is a sample. Hot threads
+  names threads, not the query/index - use elasticsearch_slow_queries/elasticsearch_tasks for that.
+- Yellow cluster status (unassigned replicas) reduces search throughput/redundancy but does
+  not by itself prove a latency cause; confirm with the thread pool and index-level signals.
+""".strip()
+
+
 class ElasticsearchHealthCheckTool(Tool):
     """Tool to check Elasticsearch/OpenSearch cluster health"""
     
@@ -967,6 +1001,97 @@ class ElasticsearchSnapshotStatusTool(Tool):
         return f"elasticsearch_snapshot_status(instance_name={instance_name})"
 
 
+class ElasticsearchSlowQueriesTool(Tool):
+    """Tool to surface currently-running (slow) search queries, sorted by duration"""
+
+    name: str = "elasticsearch_slow_queries"
+    description: str = (
+        "Identify slow/expensive search queries that are currently running, sorted by "
+        "duration. Returns the query body and target indices for each in-flight search "
+        "(via the tasks API) so you can pinpoint which query and index are causing high "
+        "search latency. Use this when investigating high search latency to find the "
+        "actual offending query."
+    )
+    parameters: Dict[str, ToolParameter] = {
+        "instance_name": ToolParameter(
+            description="Name of the Elasticsearch or OpenSearch instance",
+            type="string",
+            required=True
+        ),
+        "min_running_time_ms": ToolParameter(
+            description="Only return searches that have been running at least this many milliseconds (default 0 = all in-flight searches)",
+            type="integer",
+            required=False
+        ),
+        "top_n": ToolParameter(
+            description="Maximum number of slowest search tasks to return (default 20)",
+            type="integer",
+            required=False
+        )
+    }
+    toolset: Optional[Any] = None
+
+    def __init__(self, toolset=None):
+        super().__init__()
+        self.toolset = toolset
+
+    def _invoke(self, params: Dict, context=None) -> StructuredToolResult:
+        try:
+            instance_name = params.get('instance_name')
+            min_running_time_ms = params.get('min_running_time_ms') or 0
+            top_n = params.get('top_n') or 20
+
+            if not instance_name:
+                return StructuredToolResult(
+                    status=StructuredToolResultStatus.ERROR,
+                    error="instance_name parameter is required",
+                    params=params
+                )
+
+            logger.info(f"🔍 Getting slow/running search queries for Elasticsearch/OpenSearch instance: {instance_name}")
+
+            if not self.toolset or not self.toolset.infrainsights_client:
+                return StructuredToolResult(
+                    status=StructuredToolResultStatus.ERROR,
+                    error="InfraInsights client not available",
+                    params=params
+                )
+
+            instance = self.toolset.infrainsights_client.get_instance_by_name_and_type(
+                "elasticsearch", instance_name
+            )
+
+            if not instance:
+                return StructuredToolResult(
+                    status=StructuredToolResultStatus.ERROR,
+                    error=f"Elasticsearch/OpenSearch instance '{instance_name}' not found",
+                    params=params
+                )
+
+            slow_queries_data = self.toolset.infrainsights_client.get_elasticsearch_slow_queries(
+                instance, int(min_running_time_ms), int(top_n)
+            )
+
+            return StructuredToolResult(
+                status=StructuredToolResultStatus.SUCCESS,
+                data=slow_queries_data,
+                params=params
+            )
+
+        except Exception as e:
+            logger.error(f"Error getting slow queries: {e}", exc_info=True)
+            return StructuredToolResult(
+                status=StructuredToolResultStatus.ERROR,
+                error=f"Failed to get slow queries: {str(e)}",
+                params=params
+            )
+
+    def get_parameterized_one_liner(self, params: Dict) -> str:
+        instance_name = params.get('instance_name', 'unknown')
+        min_ms = params.get('min_running_time_ms', 0)
+        return f"elasticsearch_slow_queries(instance_name={instance_name}, min_running_time_ms={min_ms})"
+
+
 class EnhancedElasticsearchToolset(Toolset):
     """Enhanced Elasticsearch/OpenSearch toolset with InfraInsights integration"""
     
@@ -998,6 +1123,7 @@ class EnhancedElasticsearchToolset(Toolset):
             
             # Task management and performance
             ElasticsearchTasksTool(toolset=None),
+            ElasticsearchSlowQueriesTool(toolset=None),
             ElasticsearchPendingTasksTool(toolset=None),
             ElasticsearchHotThreadsTool(toolset=None),
             
@@ -1032,10 +1158,16 @@ class EnhancedElasticsearchToolset(Toolset):
         # Set toolset reference for tools
         for tool in self.tools:
             tool.toolset = self
-        
+
         # Set config to None initially
         self.config = None
-        
+
+        # Investigation guidance injected into the LLM system prompt when this toolset is
+        # enabled (see prompts/_toolsets_instructions.jinja2). This biases tool *selection*
+        # toward the signals that actually explain search latency, and corrects two common
+        # misreads (OS memory vs JVM heap, and treating hot_threads samples as authoritative).
+        self.llm_instructions = ELASTICSEARCH_LLM_INSTRUCTIONS
+
         logger.info("✅✅✅ ENHANCED ELASTICSEARCH TOOLSET CREATED SUCCESSFULLY ✅✅✅")
     
     def configure(self, config: Dict[str, Any]) -> None:
